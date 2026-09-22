@@ -598,14 +598,6 @@ tbody tr:last-child td {
 }
 .match-row-mode {
   grid-area: mode;
-  display: flex;
-  flex-direction: column;
-  line-height: 1.35;
-}
-.match-row-mode-secondary {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
 }
 .match-row-duration {
   grid-area: dur;
@@ -926,6 +918,145 @@ tbody tr:last-child td {
   background: var(--md-surface-container-high);
   padding: 2px 8px;
   border-radius: var(--shape-xs);
+}
+
+/* ============================================================
+   Lane matchups (match detail's Laning tab) - one card per physical
+   lane comparing the mirrored Radiant/Dire laners head to head.
+   ============================================================ */
+.lane-matchups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.lane-card {
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-lg);
+  padding: 16px 18px;
+  box-shadow: var(--elevation-1);
+}
+.lane-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.lane-card-header h4 {
+  margin: 0;
+}
+.lane-outcome-pill {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  border-radius: var(--shape-full);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--md-surface-container-high);
+}
+.lane-outcome-pill.lane-outcome-won {
+  color: var(--radiant);
+  background: color-mix(in srgb, var(--radiant) 16%, transparent);
+}
+.lane-outcome-pill.lane-outcome-lost {
+  color: var(--dire);
+  background: color-mix(in srgb, var(--dire) 16%, transparent);
+}
+.lane-outcome-pill.lane-outcome-draw {
+  color: var(--text-dim);
+}
+.lane-vs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.lane-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.lane-side-dire {
+  align-items: flex-end;
+}
+.lane-side-dire .lane-player-row {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+.lane-vs-divider {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.lane-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lane-player-kda {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lane-player-cs {
+  white-space: nowrap;
+}
+.lane-compare {
+  margin-top: 14px;
+}
+.lane-compare-values {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.lane-compare-label {
+  color: var(--text-dim);
+}
+.lane-compare-radiant {
+  color: var(--radiant);
+  font-weight: 700;
+}
+.lane-compare-dire {
+  color: var(--dire);
+  font-weight: 700;
+}
+.lane-compare-track {
+  display: flex;
+  height: 6px;
+  border-radius: var(--shape-full);
+  overflow: hidden;
+  background: var(--md-surface-container-high);
+}
+.lane-compare-fill-radiant {
+  background: var(--radiant);
+  transition: width var(--duration-long) var(--motion-spring);
+}
+.lane-compare-fill-dire {
+  background: var(--dire);
+  transition: width var(--duration-long) var(--motion-spring);
+}
+@media (max-width: 560px) {
+  .lane-vs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lane-vs-divider {
+    align-self: center;
+  }
+  .lane-side-dire {
+    align-items: flex-start;
+  }
+  .lane-side-dire .lane-player-row {
+    flex-direction: row;
+    text-align: left;
+  }
 }
 
 /* ============================================================

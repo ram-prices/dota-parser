@@ -217,7 +217,7 @@ export function averageRankLabel(tiers: Array<number | null | undefined>): strin
 // a decisive, more concrete signal than a close gold/XP lead.
 export type LaneOutcome = "won" | "draw" | "lost";
 
-const LANE_CUTOFF_MINUTE = 10;
+export const LANE_CUTOFF_MINUTE = 10;
 const LANE_WIN_MARGIN = 0.15; // >15% combined net worth + XP lead to call it decisively
 
 // Radiant's safe lane is the bottom lane, Dire's safe lane is the top lane
@@ -233,12 +233,15 @@ function physicalLane(radiant: boolean, laneRole: number): "top" | "mid" | "bot"
 // they share the bottom lane, and vice versa; Mid (2) faces Mid.
 const MIRROR_LANE_ROLE: Record<number, number> = { 1: 3, 2: 2, 3: 1 };
 
+// Value of a per-minute cumulative array (gold_t, xp_t, lh_t, ...) at a given
+// minute, clamped to the last entry if the game ended before then.
+export function valueAtMinute(arr: number[] | undefined, minute: number): number | null {
+  if (!arr || arr.length === 0) return null;
+  return arr[Math.min(minute, arr.length - 1)] ?? null;
+}
+
 function laneValueAt(player: MatchPlayer, minute: number): number {
-  const networth = player.networth_t;
-  const xp = player.xp_t;
-  const nw = networth && networth.length > 0 ? networth[Math.min(minute, networth.length - 1)] : 0;
-  const x = xp && xp.length > 0 ? xp[Math.min(minute, xp.length - 1)] : 0;
-  return nw + x;
+  return (valueAtMinute(player.networth_t, minute) ?? 0) + (valueAtMinute(player.xp_t, minute) ?? 0);
 }
 
 // Earliest tower in this physical lane destroyed before the cutoff, if any -
@@ -261,6 +264,33 @@ function earlyLaneTowerBeneficiary(
   return earliest.ownerTeam === "radiant" ? "dire" : "radiant";
 }
 
+// Outcome from the RADIANT side's perspective: "won" = radiant took this
+// lane, "lost" = dire took it. Shared by laneOutcome() (one player's own
+// result) and laneMatchups() (the full head-to-head for a lane).
+function laneResultForGroups(
+  radiantGroup: MatchPlayer[],
+  direGroup: MatchPlayer[],
+  lane: "top" | "mid" | "bot",
+  objectives: ObjectiveEntry[] | undefined,
+): LaneOutcome | null {
+  if (radiantGroup.length === 0 || direGroup.length === 0) return null;
+
+  const radiantScore = radiantGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
+  const direScore = direGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
+
+  let result: LaneOutcome;
+  if (radiantScore > direScore * (1 + LANE_WIN_MARGIN)) result = "won";
+  else if (direScore > radiantScore * (1 + LANE_WIN_MARGIN)) result = "lost";
+  else result = "draw";
+
+  if (result === "draw") {
+    const beneficiary = earlyLaneTowerBeneficiary(objectives, lane);
+    if (beneficiary) result = beneficiary === "radiant" ? "won" : "lost";
+  }
+
+  return result;
+}
+
 export function laneOutcome(detail: MatchDetail, playerSlot: number): LaneOutcome | null {
   const me = detail.players.find((p) => p.player_slot === playerSlot);
   if (!me || !me.lane_role) return null;
@@ -272,22 +302,15 @@ export function laneOutcome(detail: MatchDetail, playerSlot: number): LaneOutcom
 
   const myGroup = detail.players.filter((p) => isRadiant(p.player_slot) === myRadiant && p.lane_role === me.lane_role);
   const enemyGroup = detail.players.filter((p) => isRadiant(p.player_slot) !== myRadiant && p.lane_role === enemyLaneRole);
-  if (myGroup.length === 0 || enemyGroup.length === 0) return null;
 
-  const myScore = myGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
-  const enemyScore = enemyGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
+  const radiantGroup = myRadiant ? myGroup : enemyGroup;
+  const direGroup = myRadiant ? enemyGroup : myGroup;
+  const radiantResult = laneResultForGroups(radiantGroup, direGroup, lane, detail.objectives);
+  if (!radiantResult) return null;
+  if (radiantResult === "draw") return "draw";
 
-  let result: LaneOutcome;
-  if (myScore > enemyScore * (1 + LANE_WIN_MARGIN)) result = "won";
-  else if (enemyScore > myScore * (1 + LANE_WIN_MARGIN)) result = "lost";
-  else result = "draw";
-
-  if (result === "draw") {
-    const beneficiary = earlyLaneTowerBeneficiary(detail.objectives, lane);
-    if (beneficiary) result = beneficiary === (myRadiant ? "radiant" : "dire") ? "won" : "lost";
-  }
-
-  return result;
+  const myTeamWon = myRadiant ? radiantResult === "won" : radiantResult === "lost";
+  return myTeamWon ? "won" : "lost";
 }
 
 export function laneOutcomeLabel(outcome: LaneOutcome | null | undefined): string | null {
@@ -295,6 +318,37 @@ export function laneOutcomeLabel(outcome: LaneOutcome | null | undefined): strin
   if (outcome === "lost") return "Lost lane";
   if (outcome === "draw") return "Even lane";
   return null;
+}
+
+export interface LaneMatchup {
+  lane: "top" | "mid" | "bot";
+  label: string;
+  radiantPlayers: MatchPlayer[];
+  direPlayers: MatchPlayer[];
+  // Radiant-side perspective: "won" = radiant took this lane.
+  outcome: LaneOutcome | null;
+}
+
+const LANE_LABELS: Record<"top" | "mid" | "bot", string> = {
+  top: "Top Lane",
+  mid: "Mid Lane",
+  bot: "Bottom Lane",
+};
+
+// The full head-to-head for all three lanes, for a dedicated match-up view -
+// grouped the same way as laneOutcome() (by actual lane_role, not assumed
+// position), so it agrees with the per-match W/L badge shown elsewhere.
+export function laneMatchups(detail: MatchDetail): LaneMatchup[] {
+  return (["top", "mid", "bot"] as const).map((lane) => {
+    const radiantPlayers = detail.players.filter(
+      (p) => isRadiant(p.player_slot) && p.lane_role != null && physicalLane(true, p.lane_role) === lane,
+    );
+    const direPlayers = detail.players.filter(
+      (p) => !isRadiant(p.player_slot) && p.lane_role != null && physicalLane(false, p.lane_role) === lane,
+    );
+    const outcome = laneResultForGroups(radiantPlayers, direPlayers, lane, detail.objectives);
+    return { lane, label: LANE_LABELS[lane], radiantPlayers, direPlayers, outcome };
+  });
 }
 
 const OBJECTIVE_LABELS: Record<string, string> = {

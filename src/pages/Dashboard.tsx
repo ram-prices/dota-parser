@@ -121,13 +121,11 @@ export function Dashboard({ accountId }: { accountId: number }) {
               <span className="match-row-stat match-row-kda">
                 {m.kills} / {m.deaths} / {m.assists}
               </span>
-              <span className="match-row-stat match-row-mode">
+              <span className="match-row-stat match-row-stacked match-row-mode">
                 <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
-                <span className="match-row-mode-secondary">
-                  <span className="text-dim small">{gameModeName(m.game_mode)}</span>
-                  <span className="text-dim small">
-                    {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
-                  </span>
+                <span className="text-dim small">{gameModeName(m.game_mode)}</span>
+                <span className="text-dim small">
+                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
                 </span>
               </span>
               <span className="match-row-stat match-row-stacked match-row-duration">

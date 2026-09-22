@@ -18,6 +18,7 @@ import {
   objectiveLabel,
 } from "../dota";
 import { Scoreboard } from "../components/Scoreboard";
+import { LaneMatchups } from "../components/LaneMatchups";
 import { AdvantageChart } from "../components/AdvantageChart";
 import { RemainingFields } from "../components/PrettyValue";
 import { KeyedStatTable } from "../components/KeyedStatTable";
@@ -239,32 +240,39 @@ export function MatchDetail() {
   );
 
   const laningTab = (
-    <table className="match-list">
-      <thead>
-        <tr>
-          <th>Player</th>
-          <th>Lane</th>
-          <th>CS @ 10min</th>
-          <th>Denies @ 10min</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.players.map((p) => (
-          <tr key={p.player_slot}>
-            <td className="hero-cell">
-              {heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}
-              {heroName(p.hero_id)}
-            </td>
-            <td>
-              {laneRoleName(p.lane_role)}
-              {p.is_roaming ? " (roaming)" : ""}
-            </td>
-            <td>{csAtMinute(p.lh_t, 10) ?? "-"}</td>
-            <td>{csAtMinute(p.dn_t, 10) ?? "-"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <>
+      <LaneMatchups detail={data} />
+
+      <div className="section">
+        <h4>Every player's lane assignment</h4>
+        <table className="match-list">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Lane</th>
+              <th>CS @ 10min</th>
+              <th>Denies @ 10min</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.players.map((p) => (
+              <tr key={p.player_slot}>
+                <td className="hero-cell">
+                  {heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}
+                  {heroName(p.hero_id)}
+                </td>
+                <td>
+                  {laneRoleName(p.lane_role)}
+                  {p.is_roaming ? " (roaming)" : ""}
+                </td>
+                <td>{csAtMinute(p.lh_t, 10) ?? "-"}</td>
+                <td>{csAtMinute(p.dn_t, 10) ?? "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 
   const farmTab = (
