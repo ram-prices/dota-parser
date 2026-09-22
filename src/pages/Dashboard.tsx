@@ -78,56 +78,43 @@ export function Dashboard({ accountId }: { accountId: number }) {
         </div>
       </div>
 
-      <table className="match-list">
-        <thead>
-          <tr>
-            <th>Hero</th>
-            <th>Result</th>
-            <th>KDA</th>
-            <th>Mode</th>
-            <th>Avg Rank</th>
-            <th>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {matches.map((m, i) => {
-            const won = isRadiant(m.player_slot) === m.radiant_win;
-            return (
-              <tr
-                key={m.match_id}
-                className={won ? "row-win" : "row-loss"}
-                style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
-              >
-                <td className="hero-role-cell">
-                  {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />}
-                  {positionShort(roles[m.match_id]) && (
-                    <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
-                      {positionShort(roles[m.match_id])}
-                    </span>
-                  )}
-                </td>
-                <td className="result-cell">
-                  <Link to={`/matches/${m.match_id}`}>{won ? "W" : "L"}</Link>
-                </td>
-                <td>
-                  {m.kills} / {m.deaths} / {m.assists}
-                </td>
-                <td>
-                  <div>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</div>
-                  <div className="text-dim small">{gameModeName(m.game_mode)}</div>
-                </td>
-                <td className="text-dim">
-                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
-                </td>
-                <td>
-                  <div>{formatDuration(m.duration)}</div>
-                  <div className="text-dim small">{formatRelativeTime(m.start_time)}</div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="match-rows">
+        {matches.map((m, i) => {
+          const won = isRadiant(m.player_slot) === m.radiant_win;
+          return (
+            <Link
+              to={`/matches/${m.match_id}`}
+              key={m.match_id}
+              className={`match-row ${won ? "row-win" : "row-loss"}`}
+              style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
+            >
+              <span className="match-row-hero">
+                {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />}
+                {positionShort(roles[m.match_id]) && (
+                  <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
+                    {positionShort(roles[m.match_id])}
+                  </span>
+                )}
+              </span>
+              <span className="match-row-result">{won ? "W" : "L"}</span>
+              <span className="match-row-stat">
+                {m.kills} / {m.deaths} / {m.assists}
+              </span>
+              <span className="match-row-stat match-row-stacked">
+                <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
+                <span className="text-dim small">{gameModeName(m.game_mode)}</span>
+              </span>
+              <span className="match-row-stat text-dim">
+                {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+              </span>
+              <span className="match-row-stat match-row-stacked">
+                <span>{formatDuration(m.duration)}</span>
+                <span className="text-dim small">{formatRelativeTime(m.start_time)}</span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
