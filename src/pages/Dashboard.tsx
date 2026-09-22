@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
-import { formatDuration, formatRelativeTime, gameModeName, heroIcon, heroName, isRadiant } from "../dota";
+import { formatDuration, formatRelativeTime, heroIcon, heroName, isRadiant, matchModeLabel } from "../dota";
 
 export function Dashboard({ accountId }: { accountId: number }) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -66,7 +66,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt="" className="hero-icon" />}
                   {heroName(m.hero_id)}
                 </td>
-                <td>{gameModeName(m.game_mode)}</td>
+                <td>{matchModeLabel(m.game_mode, m.lobby_type)}</td>
                 <td>
                   {m.kills} / {m.deaths} / {m.assists}
                 </td>

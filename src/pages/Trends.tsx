@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMatches, OpenDotaError } from "../opendota";
 import type { MatchSummary } from "../types";
-import { formatDuration, formatRelativeTime, gameModeName, heroIcon, heroName, isRadiant } from "../dota";
+import { formatDuration, formatRelativeTime, heroIcon, heroName, isRadiant, matchModeLabel } from "../dota";
 
 function weekKey(unixSeconds: number): string {
   const d = new Date(unixSeconds * 1000);
@@ -134,7 +134,7 @@ export function Trends({ accountId }: { accountId: number }) {
                   {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt="" className="hero-icon" />}
                   {heroName(m.hero_id)}
                 </td>
-                <td>{gameModeName(m.game_mode)}</td>
+                <td>{matchModeLabel(m.game_mode, m.lobby_type)}</td>
                 <td>
                   {m.kills} / {m.deaths} / {m.assists}
                 </td>

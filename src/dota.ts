@@ -104,13 +104,25 @@ const GAME_MODES: Record<number, string> = {
   5: "All Random",
   16: "Captains Draft",
   18: "Ability Draft",
-  22: "Ranked All Pick",
+  20: "All Random Deathmatch",
+  21: "1v1 Mid",
+  // Patch 7.00 unified ranked/unranked queueing under this one game_mode -
+  // whether a match was ranked is a *separate* field (lobby_type === 7),
+  // not part of game_mode. Use matchModeLabel() to get "Ranked" correct.
+  22: "All Pick",
   23: "Turbo",
 };
 
 export function gameModeName(mode: number | undefined | null): string {
   if (mode == null) return "Unknown";
   return GAME_MODES[mode] ?? `Mode ${mode}`;
+}
+
+// lobby_type 7 = Ranked. Combine with game_mode for an accurate label
+// (e.g. "Ranked All Pick" vs plain "All Pick") instead of assuming a mode.
+export function matchModeLabel(mode: number | undefined | null, lobbyType: number | undefined | null): string {
+  const base = gameModeName(mode);
+  return lobbyType === 7 ? `Ranked ${base}` : base;
 }
 
 const LANE_ROLES: Record<number, string> = {

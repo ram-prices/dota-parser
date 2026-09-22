@@ -7,7 +7,7 @@ import {
   abilityById,
   formatDuration,
   formatGameTime,
-  gameModeName,
+  matchModeLabel,
   heroIcon,
   heroName,
   heroNameByUnit,
@@ -551,7 +551,7 @@ export function MatchDetail() {
       <div className="match-header">
         <h2 className={data.radiant_win ? "radiant-won" : "dire-won"}>{data.radiant_win ? "Radiant Victory" : "Dire Victory"}</h2>
         <div className="match-meta">
-          {formatDuration(data.duration)} &middot; {gameModeName(data.game_mode)} &middot; match {data.match_id}
+          {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type)} &middot; match {data.match_id}
         </div>
         {!isParsed && (
           <div className="error-box small">
