@@ -112,3 +112,31 @@ export function gameModeName(mode: number | undefined | null): string {
   if (mode == null) return "Unknown";
   return GAME_MODES[mode] ?? `Mode ${mode}`;
 }
+
+const LANE_ROLES: Record<number, string> = {
+  1: "Safe Lane",
+  2: "Mid Lane",
+  3: "Off Lane",
+  4: "Jungle",
+};
+
+export function laneRoleName(role: number | undefined | null): string {
+  if (!role) return "-";
+  return LANE_ROLES[role] ?? `Lane ${role}`;
+}
+
+const OBJECTIVE_LABELS: Record<string, string> = {
+  CHAT_MESSAGE_TOWER_KILL: "Tower destroyed",
+  CHAT_MESSAGE_TOWER_DENY: "Tower deny",
+  CHAT_MESSAGE_BARRACKS_KILL: "Barracks destroyed",
+  CHAT_MESSAGE_ROSHAN_KILL: "Roshan killed",
+  CHAT_MESSAGE_AEGIS: "Aegis picked up",
+  CHAT_MESSAGE_AEGIS_STOLEN: "Aegis stolen",
+  CHAT_MESSAGE_FIRSTBLOOD: "First blood",
+  building_kill: "Building destroyed",
+};
+
+export function objectiveLabel(type: string | undefined | null): string {
+  if (!type) return "Unknown event";
+  return OBJECTIVE_LABELS[type] ?? type.replace(/^CHAT_MESSAGE_/, "").replace(/_/g, " ").toLowerCase();
+}

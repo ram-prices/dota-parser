@@ -427,6 +427,54 @@ th {
   writing-mode: vertical-rl;
 }
 
+/* tabs */
+.tabs {
+  margin-top: 4px;
+}
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover {
+  color: var(--text);
+}
+.tab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.tab-panel h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+}
+.keyed-stat-table {
+  margin-bottom: 0;
+}
+
 /* generic pretty-printed JSON (PrettyValue / RemainingFields) */
 .section h4 {
   margin: 14px 0 6px;

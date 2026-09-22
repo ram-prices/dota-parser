@@ -109,6 +109,7 @@ export interface MatchPlayer {
   gold_t?: number[];
   xp_t?: number[];
   lh_t?: number[];
+  dn_t?: number[];
   purchase_log?: LogEntry[];
   kills_log?: LogEntry[];
   runes_log?: LogEntry[];
@@ -118,6 +119,47 @@ export interface MatchPlayer {
   pings?: number;
   actions?: Record<string, number>;
   stuns?: number;
+  damage?: Record<string, number>;
+  damage_taken?: Record<string, number>;
+  killed?: Record<string, number>;
+  killed_by?: Record<string, number>;
+  item_uses?: Record<string, number>;
+  lane_role?: number;
+  is_roaming?: boolean;
+  benchmarks?: Record<string, { raw?: number; pct?: number }>;
+}
+
+export interface ObjectiveEntry {
+  time: number;
+  type: string;
+  key?: string;
+  slot?: number;
+  player_slot?: number;
+  team?: number;
+  unit?: string;
+}
+
+export interface PickBanEntry {
+  is_pick: boolean;
+  hero_id: number;
+  team: number;
+  order: number;
+  player_slot?: number;
+}
+
+export interface TeamfightPlayer {
+  deaths: number;
+  damage: number;
+  healing: number;
+  gold_delta: number;
+  xp_delta: number;
+}
+
+export interface Teamfight {
+  start: number;
+  end: number;
+  deaths: number;
+  players: TeamfightPlayer[];
 }
 
 export interface MatchDetail {
@@ -132,6 +174,9 @@ export interface MatchDetail {
   radiant_gold_adv?: number[];
   radiant_xp_adv?: number[];
   chat?: ChatEntry[];
+  objectives?: ObjectiveEntry[];
+  picks_bans?: PickBanEntry[];
+  teamfights?: Teamfight[];
   players: MatchPlayer[];
   // Anything else OpenDota includes that we don't have a typed field for
   // (objectives, teamfights, draft_timings, ...) is still present at
