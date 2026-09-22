@@ -140,6 +140,15 @@ export function getMatchesPage(
   });
 }
 
+// Exposes the same stored match index getMatches()/getWinLoss() use, for
+// the Hero Overview widget's KDA/lane breakdown - free to call since it's
+// the same cached("match-index", ...) entry, not a separate fetch. Returns
+// null when the index isn't available (falls back to the live API path
+// instead, which doesn't expose the full history needed for these stats).
+export function getMatchIndexForStats(): Promise<MatchSummary[] | null> {
+  return getStoredMatchIndex();
+}
+
 export function getHeroStats(accountId: number): Promise<HeroStat[]> {
   return cached(`heroes:${accountId}`, LIST_TTL_MS, () => get<HeroStat[]>(`/players/${accountId}/heroes`));
 }

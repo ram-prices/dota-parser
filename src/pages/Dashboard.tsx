@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getMatch, getMatchesPage, getProfile, getWinLoss, OpenDotaError } from "../opendota";
+import { HeroOverview } from "../components/HeroOverview";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
   averageRankTier,
@@ -131,6 +132,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
           </p>
         </div>
       </div>
+
+      <HeroOverview accountId={accountId} />
 
       <table className="match-table">
         <tbody>

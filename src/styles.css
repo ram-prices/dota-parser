@@ -789,6 +789,95 @@ tbody tr:last-child td {
 }
 
 /* ============================================================
+   Hero overview widget (Matches tab) - a "most played heroes" summary
+   card, one row per hero: matches/win-rate/KDA as three small bars, plus
+   a segmented lane breakdown bar underneath.
+   ============================================================ */
+.hero-overview-header {
+  margin-bottom: 4px;
+}
+.hero-overview-header h3 {
+  margin: 0;
+}
+.hero-overview-list {
+  display: flex;
+  flex-direction: column;
+}
+.hero-overview-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.hero-overview-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.hero-overview-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.hero-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.hero-overview-stat {
+  min-width: 0;
+}
+.hero-overview-value {
+  font-weight: 700;
+  font-size: 15px;
+}
+.hero-overview-bar-track {
+  height: 4px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-high);
+  overflow: hidden;
+  margin: 4px 0;
+}
+.hero-overview-bar {
+  height: 100%;
+  border-radius: var(--shape-full);
+  transition: width var(--duration-long) var(--motion-spring);
+}
+.hero-overview-bar-matches {
+  background: #ef5350;
+}
+.hero-overview-bar-winrate {
+  background: var(--radiant);
+}
+.hero-overview-bar-kda {
+  background: #ffa726;
+}
+.hero-overview-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+.hero-overview-lane {
+  margin-top: 10px;
+}
+.hero-overview-lane-name {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hero-overview-lane-track {
+  display: flex;
+  height: 6px;
+  border-radius: var(--shape-full);
+  overflow: hidden;
+  background: var(--md-surface-container-high);
+}
+.hero-overview-lane-segment {
+  height: 100%;
+}
+
+/* ============================================================
    Raw data toggle
    ============================================================ */
 .raw-toggle {
