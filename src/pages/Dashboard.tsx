@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getMatch, getMatchesPage, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
@@ -22,11 +22,19 @@ import {
 const PAGE_SIZE = 30;
 
 export function Dashboard({ accountId }: { accountId: number }) {
+  // The current page is mirrored into the URL (?page=N) so that clicking
+  // into a match and then hitting the browser's back button returns to
+  // the same page instead of always resetting to page 1 - React Router
+  // unmounts/remounts this component on that round trip, so plain state
+  // alone can't survive it, but the URL does.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
+
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wl, setWl] = useState<WinLoss | null>(null);
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [pageLoading, setPageLoading] = useState(false);
   // Total match count when known (the stored index reports it) - null
   // while it's still the live-API fallback, which doesn't report a total.
@@ -63,6 +71,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
 
   function fetchPage(p: number) {
     setPage(p);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (p <= 1) next.delete("page");
+        else next.set("page", String(p));
+        return next;
+      },
+      { replace: true },
+    );
     setPageLoading(true);
     setMatches(null);
     setRanks({});
@@ -91,7 +108,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
       })
       .catch((e) => setError(e instanceof OpenDotaError ? e.message : String(e)));
 
-    fetchPage(1);
+    fetchPage(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
