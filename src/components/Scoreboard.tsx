@@ -9,8 +9,8 @@ import { computeApm, formatGameTime, heroIcon, heroName, itemImage, itemName, it
 const STICKY_WIDTH = 192;
 
 // The last column of each scroll-snap group that has another group after
-// it (Lvl/K/D/A/NW, Items, LH/DN/GPM/XPM - APM/Pings is last, so there's
-// no next group's column to hide) - used to measure each group's natural
+// it (Lvl/K/D/A/NW, Items, LH/DN/GPM/XPM/HD/H/TD - APM/Pings is last, so
+// there's no next group's column to hide) - used to measure each group's natural
 // width and, when it's narrower than the visible table, stretch it with
 // extra padding so the next group's first column doesn't peek into view.
 const GROUP_ENDS = ["nw", "items", "xpm"] as const;
@@ -139,8 +139,11 @@ export function Scoreboard({
           <th className="scoreboard-group-start">LH</th>
           <th>DN</th>
           <th>GPM</th>
+          <th>XPM</th>
+          <th>HD</th>
+          <th>H</th>
           <th className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
-            XPM
+            TD
           </th>
           <th className="scoreboard-group-start">APM</th>
           <th>Pings</th>
@@ -188,8 +191,11 @@ export function Scoreboard({
               <td className="scoreboard-group-start">{p.last_hits}</td>
               <td>{p.denies}</td>
               <td>{p.gold_per_min}</td>
+              <td>{p.xp_per_min}</td>
+              <td>{p.hero_damage ?? "-"}</td>
+              <td>{p.hero_healing ?? "-"}</td>
               <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
-                {p.xp_per_min}
+                {p.tower_damage ?? "-"}
               </td>
               <td className="scoreboard-group-start">{apm ?? "-"}</td>
               <td>{p.pings ?? "-"}</td>
