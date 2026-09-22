@@ -668,6 +668,24 @@ tbody tr:last-child td {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.scoreboard tbody .hero-name-cell .player-meta {
+  /* Overrides the rule above - the name and rank truncate independently
+     (via flex-shrink priority below) rather than as one block, so a long
+     username can no longer push the rank text off the edge. */
+  display: flex;
+  overflow: visible;
+  white-space: normal;
+}
+.scoreboard tbody .hero-name-cell .player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.scoreboard tbody .hero-name-cell .player-rank {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* ============================================================
    Charts
@@ -944,24 +962,29 @@ tbody tr:last-child td {
 .lane-outcome-pill.lane-outcome-draw {
   color: var(--text-dim);
 }
-.lane-scoreboards {
-  /* Same team-table look as the Overview tab's Scoreboard, reused here -
-     side by side (Radiant left, Dire right) when there's room, stacked
-     (Radiant above Dire, matching Overview on a narrow screen) below the
-     breakpoint. */
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+.text-radiant {
+  color: var(--radiant);
 }
-.lane-scoreboards > table {
-  flex: 1;
-  min-width: 0;
-  margin-bottom: 0;
+.text-dire {
+  color: var(--dire);
 }
-@media (max-width: 700px) {
-  .lane-scoreboards {
-    flex-direction: column;
-  }
+.lane-h2h th {
+  text-align: center;
+  font-size: 10px;
+}
+.lane-h2h th.lane-h2h-hero-col {
+  font-size: 11px;
+}
+.lane-h2h td.lane-h2h-stat {
+  text-align: center;
+}
+.lane-h2h-hero {
+  min-width: 150px;
+}
+.lane-h2h-divider-col {
+  width: 1px;
+  padding: 0 !important;
+  background: var(--md-outline-variant);
 }
 .lane-compare {
   margin-top: 14px;

@@ -43,10 +43,22 @@ export function Scoreboard({
               <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
               <td className="hero-name-cell">
                 <div title={heroName(p.hero_id)}>{heroName(p.hero_id)}</div>
-                {p.personaname && (
-                  <div className="text-dim small" title={p.personaname}>
-                    {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
-                    {p.rank_tier ? ` · ${rankTierLabel(p.rank_tier)}` : ""}
+                {(p.personaname || p.rank_tier) && (
+                  <div className="player-meta text-dim small">
+                    {p.personaname && (
+                      <span className="player-name" title={p.personaname}>
+                        {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
+                      </span>
+                    )}
+                    {/* Rank never truncates with the name - it's the more
+                        useful of the two when space is tight, so the name
+                        is what shrinks first. */}
+                    {p.rank_tier && (
+                      <span className="player-rank">
+                        {p.personaname ? " · " : ""}
+                        {rankTierLabel(p.rank_tier)}
+                      </span>
+                    )}
                   </div>
                 )}
               </td>
