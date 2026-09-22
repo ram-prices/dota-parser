@@ -4,6 +4,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { MatchDetail } from "./pages/MatchDetail";
 import { HeroStats } from "./pages/HeroStats";
 import { Peers } from "./pages/Peers";
+import { PlayerVs } from "./pages/PlayerVs";
 import { Trends } from "./pages/Trends";
 import { ChatSearch } from "./pages/ChatSearch";
 import { Settings } from "./pages/Settings";
@@ -54,6 +55,10 @@ export function App() {
           />
           <Route path="/search" element={<ChatSearch />} />
           <Route path="/matches/:matchId" element={<MatchDetail />} />
+          <Route
+            path="/vs/:targetAccountId"
+            element={<RequireAccount>{(accountId) => <PlayerVs accountId={accountId} />}</RequireAccount>}
+          />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

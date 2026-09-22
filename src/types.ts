@@ -57,6 +57,8 @@ export interface PeerStat {
   games: number;
   with_win: number;
   with_games: number;
+  against_win?: number;
+  against_games?: number;
 }
 
 export interface LogEntry {

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { MatchPlayer } from "../types";
 import { computeApm, heroIcon, heroName, itemImage, itemName } from "../dota";
 
@@ -42,7 +43,14 @@ export function Scoreboard({
               <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
               <td className="hero-name-cell">
                 {heroName(p.hero_id)}
-                {p.personaname && <div className="text-dim small">{p.personaname}</div>}
+                {p.personaname &&
+                  (p.account_id ? (
+                    <Link to={`/vs/${p.account_id}`} className="text-dim small">
+                      {p.personaname}
+                    </Link>
+                  ) : (
+                    <div className="text-dim small">{p.personaname}</div>
+                  ))}
               </td>
               <td>{p.level}</td>
               <td>{p.kills}</td>

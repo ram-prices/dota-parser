@@ -270,6 +270,12 @@ th {
   margin: 0 0 4px;
 }
 
+.vs-stat {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
 .text-dim {
   color: var(--text-dim);
 }

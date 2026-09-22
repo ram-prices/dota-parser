@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getPeers, OpenDotaError } from "../opendota";
 import type { PeerStat } from "../types";
 import { formatRelativeTime } from "../dota";
+
+function pct(win: number | undefined, games: number | undefined): string {
+  if (!games) return "-";
+  return `${Math.round((100 * (win ?? 0)) / games)}%`;
+}
 
 export function Peers({ accountId }: { accountId: number }) {
   const [peers, setPeers] = useState<PeerStat[] | null>(null);
@@ -19,13 +25,16 @@ export function Peers({ accountId }: { accountId: number }) {
   return (
     <div>
       <h2>Teammates</h2>
-      <p className="text-dim">Win rate in matches played alongside each teammate (party or randomly matched).</p>
+      <p className="text-dim">
+        Lifetime stats with and against everyone you've been matched with. Click a name for the full breakdown.
+      </p>
       <table className="match-list">
         <thead>
           <tr>
             <th>Player</th>
             <th>Games together</th>
-            <th>Win rate together</th>
+            <th>Win rate as teammates</th>
+            <th>Win rate as opponents</th>
             <th>Last played</th>
           </tr>
         </thead>
@@ -34,10 +43,13 @@ export function Peers({ accountId }: { accountId: number }) {
             <tr key={p.account_id}>
               <td className="hero-cell">
                 {p.avatar && <img src={p.avatar} alt="" className="hero-icon" />}
-                {p.personaname ?? `Account ${p.account_id}`}
+                <Link to={`/vs/${p.account_id}`}>{p.personaname ?? `Account ${p.account_id}`}</Link>
               </td>
-              <td>{p.games}</td>
-              <td>{p.games > 0 ? `${Math.round((100 * p.win) / p.games)}%` : "-"}</td>
+              <td>{p.with_games ?? p.games}</td>
+              <td>{pct(p.with_win ?? p.win, p.with_games ?? p.games)}</td>
+              <td>
+                {p.against_games ? `${pct(p.against_win, p.against_games)} (${p.against_games})` : "-"}
+              </td>
               <td>{formatRelativeTime(p.last_played)}</td>
             </tr>
           ))}
