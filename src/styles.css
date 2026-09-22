@@ -471,53 +471,28 @@ tbody tr:last-child td {
 }
 
 /* ============================================================
-   Matches list - a grid row per match instead of a rigid table, so it
-   can never need horizontal scrolling. Every row shares the exact same
-   grid-template (swapped at the breakpoint below), so a field always
-   lands in the same column position row to row - unlike flex-wrap,
-   where each row could wrap at a different point depending on its own
-   content width and throw columns out of alignment with each other.
+   Matches list - a real <table>, so column widths are computed by the
+   browser from the widest content in each column across ALL rows (like
+   any table). A CSS grid per row can't do that: each row would be its
+   own independent grid, sizing "auto" columns from only that row's own
+   content, which drifts out of alignment with its neighbors the moment
+   one row's text is wider than another's.
    ============================================================ */
-.match-rows {
-  display: flex;
-  flex-direction: column;
-  background: var(--md-surface-container);
-  border: 1px solid var(--md-outline-variant);
-  border-radius: var(--shape-lg);
-  overflow: hidden;
-  box-shadow: var(--elevation-1);
-  margin-bottom: 20px;
+.match-table td {
+  padding: 10px 6px;
+  white-space: nowrap;
 }
 .match-row {
-  /* One row, every field its own column, at every width - KDA and the
-     Ranked/All Pick/Avg Rank stack sit side by side, not one above the
-     other. Columns size to their own content (no 1fr) and
-     justify-content spreads whatever space is left evenly across the
-     gaps instead of dumping it all into one column. */
-  display: grid;
-  grid-template-columns: 70px 44px auto auto auto;
-  grid-template-areas: "hero result kda mode dur";
-  align-items: center;
-  column-gap: 10px;
-  row-gap: 3px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--md-outline-variant);
+  /* Positioned so match-row-link (an invisible stretched <a>) can cover
+     the full row via position:absolute; inset:0 - a <tr> can't be
+     wrapped in an <a> directly, so this is how the whole row stays one
+     click target while still being a real link. */
+  position: relative;
   color: var(--text);
-  text-decoration: none;
   animation: row-in var(--duration-medium) var(--motion-emphasized) both;
   transition: background var(--duration-short) var(--motion-standard);
-  justify-content: space-between;
-}
-@media (min-width: 641px) {
-  .match-row {
-    column-gap: 22px;
-  }
-}
-.match-row:last-child {
-  border-bottom: none;
 }
 .match-row:hover {
-  text-decoration: none;
   background: var(--md-surface-container-high);
 }
 .match-row.row-win:hover {
@@ -526,14 +501,32 @@ tbody tr:last-child td {
 .match-row.row-loss:hover {
   background: color-mix(in srgb, var(--dire) 8%, var(--md-surface-container));
 }
+.match-row-link {
+  position: absolute;
+  inset: 0;
+}
+.match-row-hero-cell {
+  padding-left: 12px;
+}
+.match-row-mode-cell {
+  /* Signals the browser's table layout to give this column any leftover
+     width instead of leaving it as dead space after the last column -
+     the other columns stay sized to their own content. */
+  width: 100%;
+}
+.match-row-duration-cell {
+  padding-right: 12px;
+  text-align: right;
+}
 .match-row-hero {
-  grid-area: hero;
   display: flex;
   align-items: center;
   gap: 6px;
 }
+.match-row-result-cell {
+  text-align: center;
+}
 .match-row-result {
-  grid-area: result;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -580,24 +573,13 @@ tbody tr:last-child td {
 .lane-pill.lane-draw {
   color: var(--text-dim);
 }
-.match-row-stat {
+.match-row-kda-cell {
   font-size: 13px;
-  white-space: nowrap;
 }
 .match-row-stacked {
   display: flex;
   flex-direction: column;
   line-height: 1.35;
-}
-.match-row-kda {
-  grid-area: kda;
-}
-.match-row-mode {
-  grid-area: mode;
-}
-.match-row-duration {
-  grid-area: dur;
-  justify-self: end;
 }
 
 .item-row {
@@ -962,44 +944,24 @@ tbody tr:last-child td {
 .lane-outcome-pill.lane-outcome-draw {
   color: var(--text-dim);
 }
-.lane-vs {
+.lane-scoreboards {
+  /* Same team-table look as the Overview tab's Scoreboard, reused here -
+     side by side (Radiant left, Dire right) when there's room, stacked
+     (Radiant above Dire, matching Overview on a narrow screen) below the
+     breakpoint. */
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 14px;
 }
-.lane-side {
+.lane-scoreboards > table {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   min-width: 0;
+  margin-bottom: 0;
 }
-.lane-side-dire {
-  align-items: flex-end;
-}
-.lane-side-dire .lane-player-row {
-  flex-direction: row-reverse;
-  text-align: right;
-}
-.lane-vs-divider {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-dim);
-}
-.lane-player-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.lane-player-kda {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.lane-player-cs {
-  white-space: nowrap;
+@media (max-width: 700px) {
+  .lane-scoreboards {
+    flex-direction: column;
+  }
 }
 .lane-compare {
   margin-top: 14px;
@@ -1037,22 +999,6 @@ tbody tr:last-child td {
 .lane-compare-fill-dire {
   background: var(--dire);
   transition: width var(--duration-long) var(--motion-spring);
-}
-@media (max-width: 560px) {
-  .lane-vs {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .lane-vs-divider {
-    align-self: center;
-  }
-  .lane-side-dire {
-    align-items: flex-start;
-  }
-  .lane-side-dire .lane-player-row {
-    flex-direction: row;
-    text-align: left;
-  }
 }
 
 /* ============================================================

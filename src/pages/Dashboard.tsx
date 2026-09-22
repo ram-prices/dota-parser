@@ -86,56 +86,76 @@ export function Dashboard({ accountId }: { accountId: number }) {
         </div>
       </div>
 
-      <div className="match-rows">
-        {matches.map((m, i) => {
-          const won = isRadiant(m.player_slot) === m.radiant_win;
-          return (
-            <Link
-              to={`/matches/${m.match_id}`}
-              key={m.match_id}
-              className={`match-row ${won ? "row-win" : "row-loss"}`}
-              style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
-            >
-              <span className="match-row-hero">
-                {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />}
-                {positionShort(roles[m.match_id]) && (
-                  <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
-                    {positionShort(roles[m.match_id])}
+      <table className="match-table">
+        <tbody>
+          {matches.map((m, i) => {
+            const won = isRadiant(m.player_slot) === m.radiant_win;
+            return (
+              <tr
+                key={m.match_id}
+                className={`match-row ${won ? "row-win" : "row-loss"}`}
+                style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
+              >
+                <td className="match-row-hero-cell">
+                  {/* Covers the whole row so the entire match is one click
+                      target, while still being a real <a> (browser back/
+                      forward, open-in-new-tab, keyboard nav all just work) -
+                      a <tr> can't be wrapped in an <a> directly. */}
+                  <Link
+                    to={`/matches/${m.match_id}`}
+                    className="match-row-link"
+                    aria-label={`${heroName(m.hero_id)} - ${won ? "Win" : "Loss"} - ${formatRelativeTime(m.start_time)}`}
+                  />
+                  <span className="match-row-hero">
+                    {heroIcon(m.hero_id) && (
+                      <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />
+                    )}
+                    {positionShort(roles[m.match_id]) && (
+                      <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
+                        {positionShort(roles[m.match_id])}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              <span className="match-row-result">
-                <span className="result-badge">{won ? "W" : "L"}</span>
-                {lanes[m.match_id] && (
-                  <span
-                    className={`lane-pill lane-${lanes[m.match_id]}`}
-                    title={laneOutcomeLabel(lanes[m.match_id]) ?? undefined}
-                  >
-                    <span className="lane-pill-arrow" aria-hidden="true">
-                      ↖
+                </td>
+                <td className="match-row-result-cell">
+                  <span className="match-row-result">
+                    <span className="result-badge">{won ? "W" : "L"}</span>
+                    {lanes[m.match_id] && (
+                      <span
+                        className={`lane-pill lane-${lanes[m.match_id]}`}
+                        title={laneOutcomeLabel(lanes[m.match_id]) ?? undefined}
+                      >
+                        <span className="lane-pill-arrow" aria-hidden="true">
+                          ↖
+                        </span>
+                        {lanes[m.match_id] === "won" ? "W" : lanes[m.match_id] === "lost" ? "L" : "D"}
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td className="match-row-kda-cell">
+                  {m.kills} / {m.deaths} / {m.assists}
+                </td>
+                <td className="match-row-mode-cell">
+                  <div className="match-row-stacked">
+                    <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
+                    <span className="text-dim small">{gameModeName(m.game_mode)}</span>
+                    <span className="text-dim small">
+                      {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
                     </span>
-                    {lanes[m.match_id] === "won" ? "W" : lanes[m.match_id] === "lost" ? "L" : "D"}
-                  </span>
-                )}
-              </span>
-              <span className="match-row-stat match-row-kda">
-                {m.kills} / {m.deaths} / {m.assists}
-              </span>
-              <span className="match-row-stat match-row-stacked match-row-mode">
-                <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
-                <span className="text-dim small">{gameModeName(m.game_mode)}</span>
-                <span className="text-dim small">
-                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
-                </span>
-              </span>
-              <span className="match-row-stat match-row-stacked match-row-duration">
-                <span>{formatDuration(m.duration)}</span>
-                <span className="text-dim small">{formatRelativeTime(m.start_time)}</span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+                  </div>
+                </td>
+                <td className="match-row-duration-cell">
+                  <div className="match-row-stacked">
+                    <span>{formatDuration(m.duration)}</span>
+                    <span className="text-dim small">{formatRelativeTime(m.start_time)}</span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -1,28 +1,12 @@
-import type { MatchDetail, MatchPlayer } from "../types";
-import { LANE_CUTOFF_MINUTE, heroIcon, heroName, laneMatchups, valueAtMinute, type LaneOutcome } from "../dota";
+import type { MatchDetail } from "../types";
+import { LANE_CUTOFF_MINUTE, laneMatchups, valueAtMinute, type LaneOutcome } from "../dota";
+import { Scoreboard } from "./Scoreboard";
 
 function outcomeLabel(outcome: LaneOutcome | null): string {
   if (outcome === "won") return "Radiant won";
   if (outcome === "lost") return "Dire won";
   if (outcome === "draw") return "Even lane";
   return "No lane data";
-}
-
-function LanePlayerRow({ player }: { player: MatchPlayer }) {
-  const lh = valueAtMinute(player.lh_t, LANE_CUTOFF_MINUTE) ?? player.last_hits;
-  const dn = valueAtMinute(player.dn_t, LANE_CUTOFF_MINUTE) ?? player.denies;
-  return (
-    <div className="lane-player-row">
-      <span className="hero-cell">
-        {heroIcon(player.hero_id) && <img src={heroIcon(player.hero_id)!} alt="" className="hero-icon" />}
-        {heroName(player.hero_id)}
-      </span>
-      <span className="lane-player-kda">
-        {player.kills} / {player.deaths} / {player.assists}
-      </span>
-      <span className="lane-player-cs text-dim small">{lh}/{dn} CS</span>
-    </div>
-  );
 }
 
 function CompareBar({ label, radiant, dire }: { label: string; radiant: number; dire: number }) {
@@ -66,22 +50,17 @@ export function LaneMatchups({ detail }: { detail: MatchDetail }) {
               <p className="text-dim small">No lane data for this match.</p>
             ) : (
               <>
-                <div className="lane-vs">
-                  <div className="lane-side lane-side-radiant">
-                    {m.radiantPlayers.length > 0 ? (
-                      m.radiantPlayers.map((p) => <LanePlayerRow key={p.player_slot} player={p} />)
-                    ) : (
-                      <p className="text-dim small">No Radiant player here.</p>
-                    )}
-                  </div>
-                  <div className="lane-vs-divider">VS</div>
-                  <div className="lane-side lane-side-dire">
-                    {m.direPlayers.length > 0 ? (
-                      m.direPlayers.map((p) => <LanePlayerRow key={p.player_slot} player={p} />)
-                    ) : (
-                      <p className="text-dim small">No Dire player here.</p>
-                    )}
-                  </div>
+                <div className="lane-scoreboards">
+                  {m.radiantPlayers.length > 0 ? (
+                    <Scoreboard players={m.radiantPlayers} teamLabel="Radiant" className="team-radiant" duration={detail.duration} />
+                  ) : (
+                    <p className="text-dim small">No Radiant player here.</p>
+                  )}
+                  {m.direPlayers.length > 0 ? (
+                    <Scoreboard players={m.direPlayers} teamLabel="Dire" className="team-dire" duration={detail.duration} />
+                  ) : (
+                    <p className="text-dim small">No Dire player here.</p>
+                  )}
                 </div>
 
                 {m.outcome && (
