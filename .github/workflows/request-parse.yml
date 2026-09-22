@@ -5,12 +5,19 @@ name: Request OpenDota parses
 # up on the dashboard without manually clicking "Request parse" after every
 # game.
 #
-# Cost-aware by design: tracks the highest match_id already handled in
-# .github/request-parse-state.json, and only spends a /request call on
-# match_ids newer than that - a quiet run (no new match since last check)
-# costs exactly one list call, not a re-request of the same matches every
-# time. State only gets committed when something actually changed, so this
-# doesn't spam commits either.
+# Deliberately uses the free/anonymous OpenDota tier, not the paid
+# OPENDOTA_API_KEY secret (see export-matches.yml for that) - this job
+# only ever makes 1-3 calls per run at low, steady-paced volume (unlike
+# export's tight loop of thousands of calls, which is what actually needs
+# a metered key to avoid shared-runner-IP throttling). At a few games a
+# day, free-tier limits are not a concern here, so this stays $0.
+#
+# Also cost/commit-aware for its own sake: tracks the highest match_id
+# already handled in .github/request-parse-state.json, and only spends a
+# /request call on match_ids newer than that - a quiet run (no new match
+# since last check) costs exactly one list call, not a re-request of the
+# same matches every time. State only gets committed when something
+# actually changed, so this doesn't spam commits either.
 #
 # Also runnable by hand (Actions tab -> this workflow -> Run workflow) with
 # force_recheck=true to re-request the last `limit` matches regardless of
@@ -48,15 +55,12 @@ jobs:
           ACCOUNT_ID: ${{ github.event.inputs.account_id || '90031862' }}
           LIMIT: ${{ github.event.inputs.limit || '10' }}
           FORCE_RECHECK: ${{ github.event.inputs.force_recheck || 'false' }}
-          API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
         run: |
           set -uo pipefail
           STATE_FILE=".github/request-parse-state.json"
 
+          # No api_key param on purpose - see the free-tier note above.
           api_key_arg=()
-          if [ -n "$API_KEY" ]; then
-            api_key_arg=(--data-urlencode "api_key=$API_KEY")
-          fi
 
           last_seen=0
           if [ -f "$STATE_FILE" ]; then

@@ -159,14 +159,21 @@ paid, metered tier (roughly $0.01 per 100 calls at the time of writing;
 check <https://www.opendota.com/api-keys> for current pricing), not a free
 upgrade.
 
-The GitHub Actions workflows (`request-parse.yml`, `export-matches.yml`)
-use a *separate* repo secret, `OPENDOTA_API_KEY` (Settings → Secrets and
-variables → Actions) — worth setting there specifically because CI runners
-share IP ranges with countless other unrelated jobs, so anonymous calls
-from Actions can get rate-limited by that shared IP regardless of your own
-usage. A metered key ties the limit to you instead. This is separate from
-`VITE_OPENDOTA_API_KEY` (the live site's key, if you set one) on purpose,
-so routine browsing doesn't spend paid-tier calls unless you choose to.
+`export-matches.yml` uses a *separate* repo secret, `OPENDOTA_API_KEY`
+(Settings → Secrets and variables → Actions), when it's set. Worth setting
+there specifically because it makes thousands of calls in a tight loop for
+a full history export, and CI runners share IP ranges with countless other
+unrelated jobs — anonymous calls from Actions can get rate-limited by that
+shared IP regardless of your own usage, and a metered key ties the limit
+to you instead.
+
+`request-parse.yml` deliberately does *not* use that key, even when it's
+set — it only ever makes 1-3 calls per 20-minute run, a light enough,
+steady-paced load that the free tier handles fine (a few games a day is
+nowhere near any real limit), so it costs nothing. Both this and
+`VITE_OPENDOTA_API_KEY` (the live site's key, if you set one) stay separate
+from `OPENDOTA_API_KEY` on purpose, so nothing spends paid-tier calls
+unless a workflow specifically needs to.
 
 ## Deploying (optional)
 
