@@ -93,7 +93,9 @@ export function formatRelativeTime(unixSeconds: number): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   const months = Math.floor(days / 30);
-  return `${months}mo ago`;
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
 }
 
 const GAME_MODES: Record<number, string> = {
@@ -110,10 +112,13 @@ const GAME_MODES: Record<number, string> = {
   19: "Event Game",
   20: "All Random Deathmatch",
   21: "1v1 Mid",
-  // Patch 7.00 unified ranked/unranked queueing under this one game_mode -
-  // whether a match was ranked is a *separate* field (lobby_type === 7),
-  // not part of game_mode. Use matchModeLabel() to get "Ranked" correct.
-  22: "All Pick",
+  // Valve's internal enum name for this one is genuinely "All Draft", not
+  // "All Pick" - it's the mode that unified ranked/unranked queueing from
+  // patch 7.00 onward and happens to look identical to old-school All
+  // Pick (mode 1, still used by some bot/custom lobbies) in-game, but
+  // they're distinct game_mode values. Whether a match was ranked is a
+  // *separate* field (lobby_type === 7); see matchModeLabel().
+  22: "All Draft",
   23: "Turbo",
   24: "Mutation",
 };

@@ -196,18 +196,22 @@ export function Dashboard({ accountId }: { accountId: number }) {
   }, [allMatches]);
 
   const isEventModeActive = modeFilter.includes("event");
+  const isNormalModeActive = modeFilter.some((v) => v !== "event");
 
-  // Event/modifier game modes (Diretide, Mutation, ...) are only offered
-  // as Game Mode options once "Event" is toggled on in the Mode filter -
-  // picking "Mutation" without that doesn't make sense since the Mode
-  // filter would already be excluding it (or, with no Mode filter active
-  // at all, it'd be a confusing way to reach a handful of oddball games).
+  // Game Mode options are gated by which Mode chip category is active -
+  // event modes (Diretide, Mutation, ...) only appear once "Event" is
+  // toggled on, and everything else (All Pick, Turbo, ...) only appears
+  // once at least one of Ranked/Unranked/Bot Match is on. With no Mode
+  // chip active at all, the dropdown stays empty (just "All Game Modes")
+  // rather than listing every mode the account has ever played - picking
+  // a specific mode only makes sense once you've narrowed down which
+  // category of game you're looking at.
   const gameModeOptions = useMemo(() => {
     if (!allMatches) return [];
     const modes = Array.from(new Set(allMatches.map((m) => m.game_mode)));
-    const visible = isEventModeActive ? modes : modes.filter((m) => !isEventGameMode(m));
+    const visible = modes.filter((m) => (isEventGameMode(m) ? isEventModeActive : isNormalModeActive));
     return visible.sort((a, b) => gameModeName(a).localeCompare(gameModeName(b)));
-  }, [allMatches, isEventModeActive]);
+  }, [allMatches, isEventModeActive, isNormalModeActive]);
 
   const filtered = useMemo(() => {
     if (!allMatches) return null;
@@ -347,10 +351,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 onClick={() => {
                   const isActive = modeFilter.includes(opt.value);
                   const next = isActive ? modeFilter.filter((v) => v !== opt.value) : [...modeFilter, opt.value];
-                  // Turning "Event" off while an event-only game mode is
-                  // selected would leave the Game Mode dropdown pointed at
-                  // an option it's about to hide - reset it back to "All".
-                  const clearGameMode = opt.value === "event" && isActive && isEventGameMode(gameModeFilter);
+                  // Toggling off the last chip in a category (Event, or
+                  // Ranked/Unranked/Bot Match) while the Game Mode filter
+                  // points at a mode from that now-hidden category would
+                  // leave it stuck on a hidden option - reset it to "All".
+                  const gameModeIsEvent = isEventGameMode(gameModeFilter);
+                  const categoryNowEmpty = gameModeIsEvent ? !next.includes("event") : !next.some((v) => v !== "event");
+                  const clearGameMode = Boolean(gameModeFilter) && categoryNowEmpty;
                   updateParams(clearGameMode ? { mode: next, gameMode: 0, page: 1 } : { mode: next, page: 1 });
                 }}
               >
