@@ -20,3 +20,15 @@ Populated and kept up to date by `.github/workflows/export-matches.yml` on
 the `main` branch. The dashboard reads files from here first (via
 `raw.githubusercontent.com`) and only calls OpenDota's live API for a match
 that isn't here yet.
+
+## `matches-index.json`
+
+The lightweight per-match summary list for the account (kills/deaths/
+duration/hero_id/game_mode/etc - not the full match detail, just what
+OpenDota's `GET /players/{account_id}/matches` returns), newest match
+first. This is what the dashboard's Matches list, Trends and win/loss
+count read instead of calling that endpoint live on every page load.
+
+Written by `export-matches.yml` (a full refresh each run) and kept current
+between those runs by `request-parse.yml` (merges in whatever its own
+20-minute new-match check just fetched - no extra API call for it).
