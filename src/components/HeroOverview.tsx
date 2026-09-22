@@ -33,7 +33,7 @@ interface HeroRow {
   lanes: Record<number, number>;
 }
 
-export function HeroOverview({ accountId }: { accountId: number }) {
+export function HeroOverview({ accountId, showMoreLink = true }: { accountId: number; showMoreLink?: boolean }) {
   const [rows, setRows] = useState<HeroRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +96,7 @@ export function HeroOverview({ accountId }: { accountId: number }) {
     <div className="chart hero-overview">
       <div className="toolbar hero-overview-header">
         <h3>Most Played Heroes</h3>
-        <Link to="/heroes">+ More</Link>
+        {showMoreLink && <Link to="/heroes">+ More</Link>}
       </div>
 
       {!rows ? <div className="loading">Loading hero stats...</div> : <HeroOverviewList rows={rows.slice(0, TOP_N)} />}

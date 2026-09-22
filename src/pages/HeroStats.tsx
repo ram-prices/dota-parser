@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getHeroStats, OpenDotaError } from "../opendota";
 import type { HeroStat } from "../types";
 import { heroIcon, heroName } from "../dota";
+import { HeroOverview } from "../components/HeroOverview";
 
 type SortKey = "games" | "winrate" | "recent";
 
@@ -28,6 +29,8 @@ export function HeroStats({ accountId }: { accountId: number }) {
 
   return (
     <div>
+      <HeroOverview accountId={accountId} showMoreLink={false} />
+
       <div className="toolbar">
         <h2>Hero stats</h2>
         <label>

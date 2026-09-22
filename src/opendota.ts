@@ -116,35 +116,12 @@ export function getMatches(
   });
 }
 
-// One page of matches, 1-indexed. `total` is the full match count when the
-// stored index is available (so the UI can show "Page X of Y" and disable
-// Next past the end) - null when falling back to OpenDota's live API,
-// which doesn't report a total, so the UI just has to try the next page.
-export function getMatchesPage(
-  accountId: number,
-  page: number,
-  pageSize: number,
-): Promise<{ matches: MatchSummary[]; total: number | null }> {
-  const key = `matches-page:${accountId}:${page}:${pageSize}`;
-  return cached(key, LIST_TTL_MS, async () => {
-    const index = await getStoredMatchIndex();
-    if (index) {
-      const start = (page - 1) * pageSize;
-      return { matches: index.slice(start, start + pageSize), total: index.length };
-    }
-    const matches = await get<MatchSummary[]>(`/players/${accountId}/matches`, {
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-    });
-    return { matches, total: null };
-  });
-}
-
 // Exposes the same stored match index getMatches()/getWinLoss() use, for
-// the Hero Overview widget's KDA/lane breakdown - free to call since it's
-// the same cached("match-index", ...) entry, not a separate fetch. Returns
-// null when the index isn't available (falls back to the live API path
-// instead, which doesn't expose the full history needed for these stats).
+// the Matches tab's client-side filtering/pagination and the Hero Overview
+// widget's KDA/lane breakdown - free to call since it's the same
+// cached("match-index", ...) entry, not a separate fetch. Returns null
+// when the index isn't available (both callers fall back to the live API
+// path instead, which doesn't expose the full history needed for these).
 export function getMatchIndexForStats(): Promise<MatchSummary[] | null> {
   return getStoredMatchIndex();
 }

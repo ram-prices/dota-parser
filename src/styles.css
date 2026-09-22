@@ -336,6 +336,9 @@ button {
 .toolbar select:hover {
   border-color: var(--md-primary);
 }
+.match-filters {
+  justify-content: flex-start;
+}
 
 /* ============================================================
    Tables
