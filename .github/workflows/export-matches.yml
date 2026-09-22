@@ -47,6 +47,24 @@ jobs:
         run: |
           set -uo pipefail
 
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commits (and pushes) whatever's been fetched so far. Called
+          # periodically during the loop below, not just once at the end -
+          # a run that gets cancelled or hits the timeout-minutes cutoff
+          # (below) would otherwise lose everything it fetched, since
+          # nothing would ever have been committed. This bit us once: a
+          # 90-minute run fetched 3000 matches and lost all of them when it
+          # got cancelled a few seconds before an end-of-run commit step.
+          commit_progress() {
+            git add matches
+            if ! git diff --cached --quiet; then
+              git commit -q -m "Export match JSON [skip ci]"
+              git push -q
+            fi
+          }
+
           api_key_arg=()
           if [ -n "$API_KEY" ]; then
             api_key_arg=(--data-urlencode "api_key=$API_KEY")
@@ -72,6 +90,7 @@ jobs:
 
           already=0
           fetched=0
+          fetched_since_commit=0
           rate_limited=false
 
           for id in "${all_ids[@]}"; do
@@ -103,12 +122,19 @@ jobs:
             mkdir -p "$dir"
             jq -c '.' /tmp/match.json > "$file"
             fetched=$((fetched + 1))
+            fetched_since_commit=$((fetched_since_commit + 1))
 
             if (( fetched % 50 == 0 )); then
               echo "  ...$fetched fetched this run (already had $already, latest: $id)"
             fi
+            if (( fetched_since_commit >= 200 )); then
+              commit_progress
+              fetched_since_commit=0
+            fi
             sleep 1.2
           done
+
+          commit_progress
 
           echo "Already had $already matches. Fetched $fetched new ones this run."
 
@@ -126,15 +152,3 @@ jobs:
               echo "- All matches exported!"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit exported files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add matches
-          if ! git diff --cached --quiet; then
-            git commit -m "Export match JSON [skip ci]"
-            git push
-          else
-            echo "No new files to commit."
-          fi
