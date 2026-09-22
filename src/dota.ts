@@ -216,15 +216,20 @@ export function rankTierLabel(tier: number | undefined | null): string {
 // Each medal's most distinctive color from its actual badge art (the small
 // gem/leaf accent, not the overall gray/gold metal), for coloring rank text
 // the way the in-game rank medal picker does.
+// Saturation ramps up from Herald to Immortal - low tiers read as flat/
+// washed-out, high tiers as bold/vivid, so the color itself signals rank
+// weight at a glance instead of every medal competing equally for
+// attention. Hues keep the same identity as before (Herald green,
+// Guardian brown, Crusader cyan, ...); only saturation/lightness change.
 const MEDAL_COLORS: Record<number, string> = {
-  1: "#8BC34A", // Herald - light green
-  2: "#A0785A", // Guardian - brown
-  3: "#26C6DA", // Crusader - cyan
-  4: "#3F9142", // Archon - green
-  5: "#D32F2F", // Legend - red
-  6: "#8C9EFF", // Ancient - light blue with a violet tinge
-  7: "#E5C158", // Divine - gold
-  8: "#E0672E", // Immortal - red-gold
+  1: "hsl(100, 20%, 60%)", // Herald - flat, muted sage green
+  2: "hsl(28, 25%, 52%)", // Guardian - flat, muted brown
+  3: "hsl(187, 35%, 55%)", // Crusader - soft cyan
+  4: "hsl(130, 40%, 45%)", // Archon - moderate green
+  5: "hsl(0, 55%, 50%)", // Legend - solid red
+  6: "hsl(235, 70%, 70%)", // Ancient - bold light blue with a violet tinge
+  7: "hsl(45, 80%, 55%)", // Divine - bold gold
+  8: "hsl(16, 90%, 50%)", // Immortal - boldest, most saturated red-gold
 };
 
 export function rankTierColor(tier: number | undefined | null): string | null {
