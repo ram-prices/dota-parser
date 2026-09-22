@@ -97,6 +97,21 @@ jobs:
             exit 0
           fi
 
+          # This lightweight per-match summary list (kills/deaths/duration/
+          # hero_id/etc, not the full match detail) is what the site's
+          # Matches list, Trends and win/loss count need - write it out so
+          # they can read it from here instead of hitting OpenDota's live
+          # /players/{id}/matches endpoint on every page load. Committed
+          # immediately (own commit, separate from the per-match files
+          # below) so it's fresh as soon as this step runs, regardless of
+          # how much of the rest of the export completes.
+          echo "$matches_json" | jq -c 'sort_by(.match_id) | reverse' > matches-index.json
+          git add matches-index.json
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Update match list index [skip ci]"
+            git push -q
+          fi
+
           # Newest first, so a partial/interrupted run still covers your
           # most-likely-to-be-viewed matches before older ones.
           mapfile -t all_ids < <(echo "$matches_json" | jq -r 'sort_by(.match_id) | reverse | .[].match_id')

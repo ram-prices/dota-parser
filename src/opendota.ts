@@ -1,13 +1,20 @@
 import { getApiKey } from "./settings";
 import { cached, cachedForever } from "./cache";
+import { isRadiant } from "./dota";
 import type { HeroStat, MatchDetail, MatchSummary, PeerStat, PlayerProfile, WinLoss } from "./types";
 
 const BASE = "https://api.opendota.com/api";
 
-// Match JSON exported to the `data` branch (see .github/workflows/export-matches.yml
-// and the data branch's own README) - a permanent copy of whatever OpenDota
-// had at export time, sharded by the last two digits of match_id.
-const DATA_BRANCH_MATCHES = "https://raw.githubusercontent.com/ram-prices/dota-parser/data/matches";
+// Data exported to the `data` branch (see .github/workflows/export-matches.yml,
+// request-parse.yml, and the data branch's own README) - a permanent copy of
+// whatever OpenDota had at export/poll time, independent of OpenDota's own
+// API being up, rate-limited, or otherwise flaky.
+const DATA_BRANCH_ROOT = "https://raw.githubusercontent.com/ram-prices/dota-parser/data";
+const DATA_BRANCH_MATCHES = `${DATA_BRANCH_ROOT}/matches`;
+const DATA_BRANCH_INDEX = `${DATA_BRANCH_ROOT}/matches-index.json`;
+
+// Lists change as you play, so cache them briefly rather than forever.
+const LIST_TTL_MS = 5 * 60 * 1000;
 
 function shardFor(matchId: number): string {
   return String(matchId).slice(-2);
@@ -21,6 +28,24 @@ async function getStoredMatch(matchId: number): Promise<MatchDetail | null> {
   } catch {
     return null;
   }
+}
+
+// The lightweight per-match summary list (kills/deaths/duration/hero_id/
+// etc - the same shape OpenDota's own /players/{id}/matches returns, not
+// the full match detail), newest first. Backs getMatches() and
+// getWinLoss() below so neither needs a live OpenDota call on every page
+// load - only cached briefly (not forever, like getStoredMatch) since a
+// match played in the last few minutes might not be in it yet.
+async function getStoredMatchIndex(): Promise<MatchSummary[] | null> {
+  return cached("match-index", LIST_TTL_MS, async () => {
+    try {
+      const res = await fetch(DATA_BRANCH_INDEX);
+      if (!res.ok) return null;
+      return (await res.json()) as MatchSummary[];
+    } catch {
+      return null;
+    }
+  });
 }
 
 export class OpenDotaError extends Error {
@@ -52,16 +77,28 @@ async function get<T>(path: string, params: Record<string, string | number | und
   return (await res.json()) as T;
 }
 
-// Lists change as you play, so cache them briefly rather than forever.
-const LIST_TTL_MS = 5 * 60 * 1000;
-
 export function getProfile(accountId: number): Promise<PlayerProfile> {
   return cached(`profile:${accountId}`, LIST_TTL_MS, () => get<PlayerProfile>(`/players/${accountId}`));
 }
 
+// Derived from the same stored match index as getMatches() below (no
+// separate call needed - win/loss is just a count over it) when available,
+// falling back to OpenDota's live /wl endpoint otherwise.
 export function getWinLoss(accountId: number, params: Record<string, string | number> = {}): Promise<WinLoss> {
   const key = `wl:${accountId}:${JSON.stringify(params)}`;
-  return cached(key, LIST_TTL_MS, () => get<WinLoss>(`/players/${accountId}/wl`, params));
+  return cached(key, LIST_TTL_MS, async () => {
+    const index = await getStoredMatchIndex();
+    if (index) {
+      let win = 0;
+      let lose = 0;
+      for (const m of index) {
+        if (isRadiant(m.player_slot) === m.radiant_win) win++;
+        else lose++;
+      }
+      return { win, lose };
+    }
+    return get<WinLoss>(`/players/${accountId}/wl`, params);
+  });
 }
 
 export function getMatches(
@@ -69,7 +106,14 @@ export function getMatches(
   params: Record<string, string | number> = { limit: 30 },
 ): Promise<MatchSummary[]> {
   const key = `matches:${accountId}:${JSON.stringify(params)}`;
-  return cached(key, LIST_TTL_MS, () => get<MatchSummary[]>(`/players/${accountId}/matches`, params));
+  return cached(key, LIST_TTL_MS, async () => {
+    const index = await getStoredMatchIndex();
+    if (index) {
+      const limit = Number(params.limit);
+      return Number.isFinite(limit) && limit > 0 ? index.slice(0, limit) : index;
+    }
+    return get<MatchSummary[]>(`/players/${accountId}/matches`, params);
+  });
 }
 
 export function getHeroStats(accountId: number): Promise<HeroStat[]> {
