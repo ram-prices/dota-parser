@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { MatchDetail } from "./pages/MatchDetail";
 import { HeroStats } from "./pages/HeroStats";
@@ -19,48 +19,70 @@ function RequireAccount({ children }: { children: (accountId: number) => React.R
   return <>{children(accountId)}</>;
 }
 
+function navClass({ isActive }: { isActive: boolean }) {
+  return isActive ? "nav-active" : undefined;
+}
+
 export function App() {
+  const location = useLocation();
+
   return (
     <div className="app">
       <header className="app-header">
-        <Link to="/" className="brand">
+        <NavLink to="/" className="brand" end>
           Dota Stats
-        </Link>
+        </NavLink>
         <nav>
-          <Link to="/">Matches</Link>
-          <Link to="/trends">Trends</Link>
-          <Link to="/heroes">Heroes</Link>
-          <Link to="/peers">Teammates</Link>
-          <Link to="/search">Chat search</Link>
-          <Link to="/settings">Settings</Link>
+          <NavLink to="/" className={navClass} end>
+            Matches
+          </NavLink>
+          <NavLink to="/trends" className={navClass}>
+            Trends
+          </NavLink>
+          <NavLink to="/heroes" className={navClass}>
+            Heroes
+          </NavLink>
+          <NavLink to="/peers" className={navClass}>
+            Teammates
+          </NavLink>
+          <NavLink to="/search" className={navClass}>
+            Chat search
+          </NavLink>
+          <NavLink to="/settings" className={navClass}>
+            Settings
+          </NavLink>
         </nav>
       </header>
       <main className="app-main">
-        <Routes>
-          <Route
-            path="/"
-            element={<RequireAccount>{(accountId) => <Dashboard accountId={accountId} />}</RequireAccount>}
-          />
-          <Route
-            path="/trends"
-            element={<RequireAccount>{(accountId) => <Trends accountId={accountId} />}</RequireAccount>}
-          />
-          <Route
-            path="/heroes"
-            element={<RequireAccount>{(accountId) => <HeroStats accountId={accountId} />}</RequireAccount>}
-          />
-          <Route
-            path="/peers"
-            element={<RequireAccount>{(accountId) => <Peers accountId={accountId} />}</RequireAccount>}
-          />
-          <Route path="/search" element={<ChatSearch />} />
-          <Route path="/matches/:matchId" element={<MatchDetail />} />
-          <Route
-            path="/vs/:targetAccountId"
-            element={<RequireAccount>{(accountId) => <PlayerVs accountId={accountId} />}</RequireAccount>}
-          />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
+        {/* Keyed on the path so every navigation remounts this wrapper,
+            replaying the page-in entrance animation each time. */}
+        <div className="page-transition" key={location.pathname}>
+          <Routes>
+            <Route
+              path="/"
+              element={<RequireAccount>{(accountId) => <Dashboard accountId={accountId} />}</RequireAccount>}
+            />
+            <Route
+              path="/trends"
+              element={<RequireAccount>{(accountId) => <Trends accountId={accountId} />}</RequireAccount>}
+            />
+            <Route
+              path="/heroes"
+              element={<RequireAccount>{(accountId) => <HeroStats accountId={accountId} />}</RequireAccount>}
+            />
+            <Route
+              path="/peers"
+              element={<RequireAccount>{(accountId) => <Peers accountId={accountId} />}</RequireAccount>}
+            />
+            <Route path="/search" element={<ChatSearch />} />
+            <Route path="/matches/:matchId" element={<MatchDetail />} />
+            <Route
+              path="/vs/:targetAccountId"
+              element={<RequireAccount>{(accountId) => <PlayerVs accountId={accountId} />}</RequireAccount>}
+            />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </div>
       </main>
     </div>
   );

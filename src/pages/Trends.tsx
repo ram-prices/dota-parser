@@ -123,10 +123,14 @@ export function Trends({ accountId }: { accountId: number }) {
           </tr>
         </thead>
         <tbody>
-          {filtered.map((m) => {
+          {filtered.map((m, i) => {
             const won = isRadiant(m.player_slot) === m.radiant_win;
             return (
-              <tr key={m.match_id} className={won ? "row-win" : "row-loss"}>
+              <tr
+                key={m.match_id}
+                className={won ? "row-win" : "row-loss"}
+                style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
+              >
                 <td className="result-cell">
                   <Link to={`/matches/${m.match_id}`}>{won ? "Win" : "Loss"}</Link>
                 </td>
