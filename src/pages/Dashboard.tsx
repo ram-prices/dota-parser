@@ -108,19 +108,26 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 <span className="result-badge">{won ? "W" : "L"}</span>
                 {lanes[m.match_id] && (
                   <span
-                    className={`lane-dot lane-${lanes[m.match_id]}`}
+                    className={`lane-pill lane-${lanes[m.match_id]}`}
                     title={laneOutcomeLabel(lanes[m.match_id]) ?? undefined}
-                  />
+                  >
+                    <span className="lane-pill-arrow" aria-hidden="true">
+                      ↖
+                    </span>
+                    {lanes[m.match_id] === "won" ? "W" : lanes[m.match_id] === "lost" ? "L" : "D"}
+                  </span>
                 )}
               </span>
               <span className="match-row-stat match-row-kda">
                 {m.kills} / {m.deaths} / {m.assists}
               </span>
-              <span className="match-row-stat match-row-stacked match-row-mode">
+              <span className="match-row-stat match-row-mode">
                 <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
-                <span className="text-dim small">{gameModeName(m.game_mode)}</span>
-                <span className="text-dim small">
-                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                <span className="match-row-mode-secondary">
+                  <span className="text-dim small">{gameModeName(m.game_mode)}</span>
+                  <span className="text-dim small">
+                    {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                  </span>
                 </span>
               </span>
               <span className="match-row-stat match-row-stacked match-row-duration">

@@ -490,7 +490,7 @@ tbody tr:last-child td {
 }
 .match-row {
   display: grid;
-  grid-template-columns: 70px 30px 1fr auto;
+  grid-template-columns: 70px 44px 1fr auto;
   grid-template-areas:
     "hero result kda  dur"
     "hero result mode mode";
@@ -511,7 +511,7 @@ tbody tr:last-child td {
        evenly across the gaps instead of dumping it all into one column,
        which is what happened when "mode" was a 1fr track with short
        left-aligned text in it. */
-    grid-template-columns: 70px 30px 90px auto 100px;
+    grid-template-columns: 70px 44px 90px auto 100px;
     grid-template-areas: "hero result kda mode dur";
     column-gap: 22px;
     justify-content: space-between;
@@ -561,20 +561,28 @@ tbody tr:last-child td {
   color: var(--dire);
   background: color-mix(in srgb, var(--dire) 16%, transparent);
 }
-.lane-dot {
-  width: 7px;
-  height: 7px;
+.lane-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 5px;
   border-radius: var(--shape-full);
-  flex-shrink: 0;
+  background: var(--md-surface-container-high);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.6;
 }
-.lane-dot.lane-won {
-  background: var(--radiant);
+.lane-pill-arrow {
+  font-size: 10px;
 }
-.lane-dot.lane-lost {
-  background: var(--dire);
+.lane-pill.lane-won {
+  color: var(--radiant);
 }
-.lane-dot.lane-draw {
-  background: var(--text-dim);
+.lane-pill.lane-lost {
+  color: var(--dire);
+}
+.lane-pill.lane-draw {
+  color: var(--text-dim);
 }
 .match-row-stat {
   font-size: 13px;
@@ -590,6 +598,14 @@ tbody tr:last-child td {
 }
 .match-row-mode {
   grid-area: mode;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.match-row-mode-secondary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
 }
 .match-row-duration {
   grid-area: dur;
