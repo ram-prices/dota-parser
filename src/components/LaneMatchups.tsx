@@ -1,5 +1,6 @@
+import { Link } from "react-router-dom";
 import type { MatchDetail, MatchPlayer } from "../types";
-import { LANE_CUTOFF_MINUTE, heroIcon, heroName, laneMatchups, valueAtMinute, type LaneOutcome } from "../dota";
+import { LANE_CUTOFF_MINUTE, heroIcon, heroName, laneMatchups, rankTierColor, rankTierLabel, valueAtMinute, type LaneOutcome } from "../dota";
 
 function outcomeLabel(outcome: LaneOutcome | null): string {
   if (outcome === "won") return "Radiant won";
@@ -35,6 +36,25 @@ function HeroHeader({ player }: { player: MatchPlayer | undefined }) {
         {heroIcon(player.hero_id) && <img src={heroIcon(player.hero_id)!} alt="" className="hero-icon" />}
         {heroName(player.hero_id)}
       </div>
+      {(player.personaname || player.rank_tier) && (
+        <div className="player-meta text-dim small">
+          {player.personaname && (
+            <div className="player-name" title={player.personaname}>
+              {player.account_id ? <Link to={`/vs/${player.account_id}`}>{player.personaname}</Link> : player.personaname}
+            </div>
+          )}
+          {/* Own line, always rendered (blank when there's no rank) so
+              every card in a row stays the same height regardless of
+              whether that particular player has a visible rank. */}
+          <div className="player-rank">
+            {player.rank_tier ? (
+              <span style={{ color: rankTierColor(player.rank_tier) ?? undefined }}>{rankTierLabel(player.rank_tier)}</span>
+            ) : (
+              " "
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

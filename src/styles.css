@@ -708,23 +708,35 @@ tbody tr:last-child td {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.scoreboard tbody .hero-name-cell .player-meta {
-  /* Overrides the rule above - name and rank are each their own line
-     (rather than one ellipsis-truncated block), and the rank line is
-     always rendered (blank when the player has no rank) so every row is
-     the same height regardless of whether its player has a visible rank. */
+
+/* Player name (second line) + rank (third line) under a hero name/icon -
+   shared between the match Scoreboard and the Laning tab's head-to-head
+   cards. The rank line is always rendered, blank when the player has no
+   rank, so every row/card stays the same height regardless of whether
+   that particular player has a visible rank. */
+.player-meta {
   display: flex;
   flex-direction: column;
-  overflow: visible;
-  white-space: normal;
+  min-width: 0;
 }
-.scoreboard tbody .hero-name-cell .player-name {
+.player-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Flex items default to min-width: auto (their content's natural
+     width), which overrides overflow/text-overflow and defeats
+     truncation entirely inside a flex column like .player-meta. */
+  min-width: 0;
 }
-.scoreboard tbody .hero-name-cell .player-rank {
+.player-rank {
   white-space: nowrap;
+}
+
+.scoreboard tbody .hero-name-cell .player-meta {
+  /* Overrides the hero-name-cell's blanket ellipsis-on-one-line rule
+     above, which would otherwise clip this multi-line block. */
+  overflow: visible;
+  white-space: normal;
 }
 
 /* The default 14px side padding is generous for K/D/A specifically (each
@@ -1227,12 +1239,20 @@ tbody tr:last-child td {
   padding: 10px 14px;
 }
 .lane-h2h-hero {
+  /* Deliberately not align-items: center - that would let hero-cell and
+     player-meta size to their own content instead of stretching to this
+     grid cell's (constrained) width, which is what player-name needs to
+     actually truncate instead of overflowing into the next column. */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  min-width: 0;
 }
 .lane-h2h-hero .hero-cell {
   justify-content: center;
   font-weight: 700;
+}
+.lane-h2h-hero .player-meta {
+  text-align: center;
 }
 .lane-h2h-value {
   text-align: center;
