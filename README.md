@@ -32,3 +32,16 @@ count read instead of calling that endpoint live on every page load.
 Written by `export-matches.yml` (a full refresh each run) and kept current
 between those runs by `request-parse.yml` (merges in whatever its own
 20-minute new-match check just fetched - no extra API call for it).
+
+## `match-extras-index.json`
+
+A few extra per-match fields that only exist on the full match detail (not
+the lightweight summary above), pulled out into their own small index so
+the dashboard doesn't need to fetch all of `matches/` just to filter by
+them: `radiant`/`dire` (each side's 5 hero_ids, for the teammate/enemy hero
+filters) and `patch` (OpenDota's patch index - see `src/data/patches.json`
+on `main` for the id-to-version-string mapping).
+
+Rebuilt from scratch each `export-matches.yml` run by scanning every file
+already under `matches/` (cheap - local file reads, no API calls), so it
+always reflects the full exported set, not just what that run fetched.
