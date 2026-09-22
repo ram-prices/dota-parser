@@ -137,6 +137,27 @@ export function laneRoleName(role: number | undefined | null): string {
   return LANE_ROLES[role] ?? `Lane ${role}`;
 }
 
+// position_est (1-5) is OpenDota's estimate of standard Dota "position"
+// (farm priority), which is what most players actually mean by "role" -
+// distinct from lane_role (just which lane: safe/mid/off/jungle).
+const POSITIONS: Record<number, string> = {
+  1: "Carry",
+  2: "Mid",
+  3: "Offlane",
+  4: "Soft Support",
+  5: "Hard Support",
+};
+
+export function positionShort(pos: number | undefined | null): string | null {
+  if (!pos || !POSITIONS[pos]) return null;
+  return `P${pos}`;
+}
+
+export function positionLabel(pos: number | undefined | null): string | null {
+  if (!pos || !POSITIONS[pos]) return null;
+  return `Position ${pos} - ${POSITIONS[pos]}`;
+}
+
 // rank_tier is a per-player field: tens digit = medal (1 Herald .. 8
 // Immortal), ones digit = star within that medal (1-5; Immortal has no
 // stars). This is the reliable "skill level" signal - the match-level

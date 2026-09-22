@@ -129,6 +129,7 @@ export interface MatchPlayer {
   item_uses?: Record<string, number>;
   lane_role?: number;
   is_roaming?: boolean;
+  position_est?: number | null;
   benchmarks?: Record<string, { raw?: number; pct?: number }>;
 }
 

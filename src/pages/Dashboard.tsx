@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMatch, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
-import { averageRankLabel, formatDuration, formatRelativeTime, gameModeName, heroIcon, heroName, isRadiant } from "../dota";
+import {
+  averageRankLabel,
+  formatDuration,
+  formatRelativeTime,
+  gameModeName,
+  heroIcon,
+  heroName,
+  isRadiant,
+  positionLabel,
+  positionShort,
+} from "../dota";
 
 export function Dashboard({ accountId }: { accountId: number }) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -11,6 +21,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [error, setError] = useState<string | null>(null);
   // undefined = still loading, null = loaded but no rank data available
   const [ranks, setRanks] = useState<Record<number, string | null | undefined>>({});
+  const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
 
   useEffect(() => {
     setProfile(null);
@@ -18,6 +29,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     setMatches(null);
     setError(null);
     setRanks({});
+    setRoles({});
 
     Promise.all([getProfile(accountId), getWinLoss(accountId), getMatches(accountId, { limit: 30 })])
       .then(([p, w, m]) => {
@@ -25,18 +37,25 @@ export function Dashboard({ accountId }: { accountId: number }) {
         setWl(w);
         setMatches(m);
 
-        // Average skill/rank per match isn't in the lightweight match-list
-        // response - only the full match detail has every player's
-        // rank_tier. Fetch each one (free/instant for anything already in
-        // the data branch, a live API call otherwise) and fill the column
-        // in as they resolve rather than blocking the whole table on it.
+        // Average skill/rank, and this account's own played role, aren't in
+        // the lightweight match-list response - only the full match detail
+        // has every player's rank_tier/position_est. Fetch each one
+        // (free/instant for anything already in the data branch, a live API
+        // call otherwise) and fill both columns in as they resolve rather
+        // than blocking the whole table on it.
         for (const match of m) {
           getMatch(match.match_id)
             .then((detail) => {
               const label = averageRankLabel(detail.players.map((p) => p.rank_tier));
               setRanks((prev) => ({ ...prev, [match.match_id]: label }));
+
+              const self = detail.players.find((p) => p.player_slot === match.player_slot);
+              setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
             })
-            .catch(() => setRanks((prev) => ({ ...prev, [match.match_id]: null })));
+            .catch(() => {
+              setRanks((prev) => ({ ...prev, [match.match_id]: null }));
+              setRoles((prev) => ({ ...prev, [match.match_id]: null }));
+            });
         }
       })
       .catch((e) => setError(e instanceof OpenDotaError ? e.message : String(e)));
@@ -79,8 +98,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 className={won ? "row-win" : "row-loss"}
                 style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
               >
-                <td className="hero-icon-cell">
+                <td className="hero-role-cell">
                   {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />}
+                  {positionShort(roles[m.match_id]) && (
+                    <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
+                      {positionShort(roles[m.match_id])}
+                    </span>
+                  )}
                 </td>
                 <td className="result-cell">
                   <Link to={`/matches/${m.match_id}`}>{won ? "W" : "L"}</Link>
