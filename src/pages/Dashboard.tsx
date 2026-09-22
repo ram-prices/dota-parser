@@ -12,6 +12,7 @@ import {
   isRadiant,
   laneOutcome,
   laneOutcomeLabel,
+  lobbyTypeLabel,
   positionLabel,
   positionShort,
   rankTierColor,
@@ -401,7 +402,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   </td>
                   <td className="match-row-mode-cell">
                     <div className="match-row-stacked">
-                      <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
+                      <span>{lobbyTypeLabel(m.lobby_type)}</span>
                       <span className="text-dim small">{gameModeName(m.game_mode)}</span>
                       <span className="small" style={{ color: rankTierColor(ranks[m.match_id]) ?? "var(--text-dim)" }}>
                         {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? rankTierLabel(ranks[m.match_id]) : "-")}

@@ -119,11 +119,39 @@ export function gameModeName(mode: number | undefined | null): string {
   return GAME_MODES[mode] ?? `Mode ${mode}`;
 }
 
-// lobby_type 7 = Ranked. Combine with game_mode for an accurate label
-// (e.g. "Ranked All Pick" vs plain "All Pick") instead of assuming a mode.
+// lobby_type is a different axis than game_mode - it's *where* the match
+// was queued (normal matchmaking, ranked, bots, a tournament, ...), not
+// the draft/pick rules. A bot match or tutorial still reports a normal
+// game_mode (e.g. All Pick), so without this a bot game just reads as
+// "Unranked" - indistinguishable from a real unranked PvP match.
+const LOBBY_TYPES: Record<number, string> = {
+  0: "Unranked",
+  1: "Practice",
+  2: "Tournament",
+  3: "Tutorial",
+  4: "Bot Match",
+  5: "Team Match",
+  6: "Solo Queue",
+  7: "Ranked",
+  8: "1v1 Mid",
+  9: "Battle Cup",
+  20: "Turbo Lobby",
+  21: "Event",
+};
+
+export function lobbyTypeLabel(lobbyType: number | undefined | null): string {
+  if (lobbyType == null) return "Unranked";
+  return LOBBY_TYPES[lobbyType] ?? `Lobby ${lobbyType}`;
+}
+
+// Combines lobby_type with game_mode for an accurate label (e.g. "Ranked
+// All Pick" vs plain "All Pick" vs "Bot Match All Pick") instead of
+// assuming a mode.
 export function matchModeLabel(mode: number | undefined | null, lobbyType: number | undefined | null): string {
   const base = gameModeName(mode);
-  return lobbyType === 7 ? `Ranked ${base}` : base;
+  if (lobbyType === 7) return `Ranked ${base}`;
+  if (lobbyType != null && lobbyType !== 0) return `${lobbyTypeLabel(lobbyType)} ${base}`;
+  return base;
 }
 
 const LANE_ROLES: Record<number, string> = {
