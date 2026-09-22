@@ -538,9 +538,9 @@ tbody tr:last-child td {
 }
 .match-row-result {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
 }
 .result-badge {
   width: 24px;
