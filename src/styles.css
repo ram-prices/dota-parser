@@ -971,31 +971,43 @@ tbody tr:last-child td {
 .lane-h2h {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
-.lane-h2h-table {
-  margin-bottom: 0;
-}
-.lane-h2h-table th {
+.lane-h2h-pair {
   background: var(--md-surface-container-high);
+  border-radius: var(--shape-md);
+  overflow: hidden;
 }
-.lane-h2h-table-hero {
-  text-align: center;
+.lane-h2h-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 14px;
 }
-.lane-h2h-table-hero .hero-cell {
+.lane-h2h-row:not(:last-child) {
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.lane-h2h-row-header {
+  padding: 10px 14px;
+}
+.lane-h2h-hero {
+  display: flex;
   justify-content: center;
 }
-.lane-h2h-table-value {
+.lane-h2h-hero .hero-cell {
+  justify-content: center;
+  font-weight: 700;
+}
+.lane-h2h-value {
   text-align: center;
   font-weight: 700;
 }
-.lane-h2h-table-label {
-  width: 1%;
+.lane-h2h-label {
   text-align: center;
   color: var(--text-dim);
   font-size: 11px;
   font-weight: 700;
-  background: var(--md-surface-container-high);
 }
 .lane-compare {
   margin-top: 14px;

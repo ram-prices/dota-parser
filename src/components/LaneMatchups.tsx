@@ -28,40 +28,36 @@ const STAT_SHORT_LABELS: Record<(typeof STAT_FIELDS)[number], string> = {
 };
 
 function HeroHeader({ player }: { player: MatchPlayer | undefined }) {
-  if (!player) return <th className="lane-h2h-table-hero">-</th>;
+  if (!player) return <div className="lane-h2h-hero">-</div>;
   return (
-    <th className="lane-h2h-table-hero">
+    <div className="lane-h2h-hero">
       <div className="hero-cell">
         {heroIcon(player.hero_id) && <img src={heroIcon(player.hero_id)!} alt="" className="hero-icon" />}
         {heroName(player.hero_id)}
       </div>
-    </th>
+    </div>
   );
 }
 
-// A 3-column table per lane pairing - value, stat label, value - so it
-// stays narrow enough to never need horizontal scrolling regardless of
-// screen size, with one row per stat instead of one column per stat.
+// Same value/label/value layout as a 3-column table, but built from plain
+// divs (CSS grid handles the column alignment) rather than an actual
+// <table> - flatter, no cell borders or header shading.
 function PairTable({ radiant, dire }: { radiant: MatchPlayer | undefined; dire: MatchPlayer | undefined }) {
   return (
-    <table className="lane-h2h-table">
-      <thead>
-        <tr>
-          <HeroHeader player={radiant} />
-          <th />
-          <HeroHeader player={dire} />
-        </tr>
-      </thead>
-      <tbody>
-        {STAT_FIELDS.map((field) => (
-          <tr key={field}>
-            <td className="lane-h2h-table-value">{statAt10(radiant, field)?.toLocaleString() ?? "-"}</td>
-            <td className="lane-h2h-table-label">{STAT_SHORT_LABELS[field]}</td>
-            <td className="lane-h2h-table-value">{statAt10(dire, field)?.toLocaleString() ?? "-"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="lane-h2h-pair">
+      <div className="lane-h2h-row lane-h2h-row-header">
+        <HeroHeader player={radiant} />
+        <span />
+        <HeroHeader player={dire} />
+      </div>
+      {STAT_FIELDS.map((field) => (
+        <div className="lane-h2h-row" key={field}>
+          <span className="lane-h2h-value">{statAt10(radiant, field)?.toLocaleString() ?? "-"}</span>
+          <span className="lane-h2h-label">{STAT_SHORT_LABELS[field]}</span>
+          <span className="lane-h2h-value">{statAt10(dire, field)?.toLocaleString() ?? "-"}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
