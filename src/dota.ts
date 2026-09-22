@@ -185,14 +185,31 @@ export function rankTierLabel(tier: number | undefined | null): string {
   return star > 0 ? `${name} ${star}` : name;
 }
 
-// Average rank across a team/match, for an at-a-glance "skill level of
-// this game" summary, e.g. "Ancient 5" or "Divine 2" - not just the medal.
-// Can't just average the raw tier numbers: medal/star isn't a continuous
-// scale (Ancient 5 is 65, the next real rank is Divine 1 at 71 - there's
-// no 66-70), so naive averaging can land on a star that doesn't exist.
-// Instead each rank becomes a continuous 0-based score (medal 0-7, star
-// 0-4), gets averaged on that scale, then decoded back.
-export function averageRankLabel(tiers: Array<number | null | undefined>): string | null {
+// Each medal's most distinctive color from its actual badge art (the small
+// gem/leaf accent, not the overall gray/gold metal), for coloring rank text
+// the way the in-game rank medal picker does.
+const MEDAL_COLORS: Record<number, string> = {
+  1: "#8BC34A", // Herald - light green
+  2: "#A0785A", // Guardian - brown
+  3: "#26C6DA", // Crusader - cyan
+  4: "#3F9142", // Archon - green
+  5: "#D32F2F", // Legend - red
+  6: "#8C9EFF", // Ancient - light blue with a violet tinge
+  7: "#E5C158", // Divine - gold
+  8: "#E0672E", // Immortal - red-gold
+};
+
+export function rankTierColor(tier: number | undefined | null): string | null {
+  if (!tier) return null;
+  const medal = Math.floor(tier / 10);
+  return MEDAL_COLORS[medal] ?? null;
+}
+
+// Average rank across a team/match, as a raw tier number (medal*10+star) -
+// see averageRankLabel below for why this can't just average the raw tier
+// numbers directly. Exposed separately (not just as the formatted label) so
+// callers can also look up its color via rankTierColor().
+export function averageRankTier(tiers: Array<number | null | undefined>): number | null {
   const scores = tiers
     .filter((t): t is number => Boolean(t))
     .filter((t) => Math.floor(t / 10) >= 1 && Math.floor(t / 10) <= 8)
@@ -206,7 +223,19 @@ export function averageRankLabel(tiers: Array<number | null | undefined>): strin
   const avgScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
   const medal = Math.floor(avgScore / 5) + 1;
   const star = (avgScore % 5) + 1;
-  return rankTierLabel(medal * 10 + star);
+  return medal * 10 + star;
+}
+
+// Average rank across a team/match, for an at-a-glance "skill level of
+// this game" summary, e.g. "Ancient 5" or "Divine 2" - not just the medal.
+// Can't just average the raw tier numbers: medal/star isn't a continuous
+// scale (Ancient 5 is 65, the next real rank is Divine 1 at 71 - there's
+// no 66-70), so naive averaging can land on a star that doesn't exist.
+// Instead each rank becomes a continuous 0-based score (medal 0-7, star
+// 0-4), gets averaged on that scale, then decoded back.
+export function averageRankLabel(tiers: Array<number | null | undefined>): string | null {
+  const tier = averageRankTier(tiers);
+  return tier == null ? null : rankTierLabel(tier);
 }
 
 // Lane outcome - OpenDota has no direct "did you win your lane" field, only

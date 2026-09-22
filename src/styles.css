@@ -697,14 +697,14 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-/* The default 14px side padding is generous for a table of mostly 1-3
-   digit numbers - tightened here so short columns (Lvl, K, D, A) don't
-   eat space a wider one (Net Worth) actually needs, which was pushing
-   it right up against/past the edge on a narrow screen. */
-.scoreboard th,
-.scoreboard td {
-  padding-left: 5px;
-  padding-right: 5px;
+/* The default 14px side padding is generous for K/D/A specifically (each
+   just a 1-2 digit number) - tightened so they sit closer together
+   instead of eating space a wider column (Net Worth) actually needs,
+   which was pushing it right up against/past the edge on a narrow
+   screen. Every other column keeps the normal padding. */
+.scoreboard-kda-cell {
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
 /* Instead of free-scrolling through 12 stat columns, scrolling/swiping

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { MatchPlayer } from "../types";
-import { computeApm, heroIcon, heroName, itemImage, itemName, rankTierLabel } from "../dota";
+import { computeApm, heroIcon, heroName, itemImage, itemName, rankTierColor, rankTierLabel } from "../dota";
 
 export function Scoreboard({
   players,
@@ -19,9 +19,9 @@ export function Scoreboard({
         <tr>
           <th colSpan={2}>{teamLabel}</th>
           <th className="scoreboard-group-start">Lvl</th>
-          <th>K</th>
-          <th>D</th>
-          <th>A</th>
+          <th className="scoreboard-kda-cell">K</th>
+          <th className="scoreboard-kda-cell">D</th>
+          <th className="scoreboard-kda-cell">A</th>
           <th>NW</th>
           <th className="scoreboard-group-start">Items</th>
           <th className="scoreboard-group-start">LH</th>
@@ -56,16 +56,16 @@ export function Scoreboard({
                     {p.rank_tier && (
                       <span className="player-rank">
                         {p.personaname ? " · " : ""}
-                        {rankTierLabel(p.rank_tier)}
+                        <span style={{ color: rankTierColor(p.rank_tier) ?? undefined }}>{rankTierLabel(p.rank_tier)}</span>
                       </span>
                     )}
                   </div>
                 )}
               </td>
               <td className="scoreboard-group-start">{p.level}</td>
-              <td>{p.kills}</td>
-              <td>{p.deaths}</td>
-              <td>{p.assists}</td>
+              <td className="scoreboard-kda-cell">{p.kills}</td>
+              <td className="scoreboard-kda-cell">{p.deaths}</td>
+              <td className="scoreboard-kda-cell">{p.assists}</td>
               <td>{p.net_worth ?? "-"}</td>
               <td className="scoreboard-group-start">
                 <div className="item-row">

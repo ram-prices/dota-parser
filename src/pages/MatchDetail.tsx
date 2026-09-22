@@ -5,7 +5,7 @@ import { invalidate } from "../cache";
 import type { MatchDetail as MatchDetailType, MatchPlayer } from "../types";
 import {
   abilityById,
-  averageRankLabel,
+  averageRankTier,
   formatDuration,
   formatGameTime,
   matchModeLabel,
@@ -16,6 +16,8 @@ import {
   itemByKey,
   laneRoleName,
   objectiveLabel,
+  rankTierColor,
+  rankTierLabel,
 } from "../dota";
 import { Scoreboard } from "../components/Scoreboard";
 import { LaneMatchups } from "../components/LaneMatchups";
@@ -562,8 +564,14 @@ export function MatchDetail() {
         <div className="match-meta">
           {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type)} &middot; match {data.match_id}
           {(() => {
-            const avg = averageRankLabel(data.players.map((p) => p.rank_tier));
-            return avg ? <> &middot; ~{avg} average</> : null;
+            const avgTier = averageRankTier(data.players.map((p) => p.rank_tier));
+            if (avgTier == null) return null;
+            return (
+              <>
+                {" "}
+                &middot; ~<span style={{ color: rankTierColor(avgTier) ?? undefined }}>{rankTierLabel(avgTier)}</span> average
+              </>
+            );
           })()}
         </div>
         {!isParsed && (

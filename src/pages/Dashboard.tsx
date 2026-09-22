@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getMatch, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
-  averageRankLabel,
+  averageRankTier,
   formatDuration,
   formatRelativeTime,
   gameModeName,
@@ -14,6 +14,8 @@ import {
   laneOutcomeLabel,
   positionLabel,
   positionShort,
+  rankTierColor,
+  rankTierLabel,
   type LaneOutcome,
 } from "../dota";
 
@@ -23,7 +25,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // undefined = still loading, null = loaded but no rank data available
-  const [ranks, setRanks] = useState<Record<number, string | null | undefined>>({});
+  const [ranks, setRanks] = useState<Record<number, number | null | undefined>>({});
   const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
   const [lanes, setLanes] = useState<Record<number, LaneOutcome | null | undefined>>({});
 
@@ -51,8 +53,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
         for (const match of m) {
           getMatch(match.match_id)
             .then((detail) => {
-              const label = averageRankLabel(detail.players.map((p) => p.rank_tier));
-              setRanks((prev) => ({ ...prev, [match.match_id]: label }));
+              const tier = averageRankTier(detail.players.map((p) => p.rank_tier));
+              setRanks((prev) => ({ ...prev, [match.match_id]: tier }));
 
               const self = detail.players.find((p) => p.player_slot === match.player_slot);
               setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
@@ -141,8 +143,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   <div className="match-row-stacked">
                     <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
                     <span className="text-dim small">{gameModeName(m.game_mode)}</span>
-                    <span className="text-dim small">
-                      {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                    <span className="small" style={{ color: rankTierColor(ranks[m.match_id]) ?? "var(--text-dim)" }}>
+                      {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? rankTierLabel(ranks[m.match_id]) : "-")}
                     </span>
                   </div>
                 </td>
