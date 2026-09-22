@@ -45,6 +45,16 @@ export function heroNameByUnit(unitName: string | undefined | null): string {
   return heroesByName[unitName]?.name ?? unitName;
 }
 
+// For a persistent summon's internal unit name (e.g. "spirit_bear",
+// currently only ever Lone Druid's bear) rather than a hero's - these
+// aren't in heroesByName, so just prettify the snake_case name itself.
+export function unitDisplayName(unitName: string): string {
+  return unitName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function itemName(itemId: number | undefined | null): string {
   if (!itemId) return "";
   return itemsById[String(itemId)]?.name ?? "";

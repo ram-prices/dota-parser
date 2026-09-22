@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { MatchPlayer } from "../types";
-import { computeApm, heroIcon, heroName, itemImage, itemName, rankTierColor, rankTierLabel } from "../dota";
+import type { AdditionalUnit, MatchPlayer } from "../types";
+import { computeApm, heroIcon, heroName, itemImage, itemName, rankTierColor, rankTierLabel, unitDisplayName } from "../dota";
 
 // Width of the sticky hero-icon + hero-name columns that stay pinned to
 // the left edge while the stat columns scroll - kept in sync with
@@ -15,6 +15,56 @@ const STICKY_WIDTH = 192;
 // extra padding so the next group's first column doesn't peek into view.
 const GROUP_ENDS = ["nw", "items", "xpm"] as const;
 type GroupEnd = (typeof GROUP_ENDS)[number];
+
+function itemIdsFor(entity: { item_0: number; item_1: number; item_2: number; item_3: number; item_4: number; item_5: number; item_neutral?: number }): number[] {
+  return [entity.item_0, entity.item_1, entity.item_2, entity.item_3, entity.item_4, entity.item_5, entity.item_neutral].filter(
+    (id): id is number => Boolean(id),
+  );
+}
+
+function ItemIcons({ ids }: { ids: number[] }) {
+  return (
+    <div className="item-row">
+      {ids.map((id, idx) => {
+        const img = itemImage(id);
+        return img ? <img key={idx} src={img} alt={itemName(id)} title={itemName(id)} className="item-icon" /> : null;
+      })}
+    </div>
+  );
+}
+
+// Right below a player who has a persistent controllable summon with its
+// own inventory (currently only Lone Druid's Spirit Bear) - stats other
+// than items belong to the hero's own row above, since OpenDota already
+// folds the whole "unit" complex's kills/gold/etc into that one row.
+function SummonRow({ unit, extraPadding }: { unit: AdditionalUnit; extraPadding: Record<GroupEnd, number> }) {
+  return (
+    <tr className="scoreboard-summon-row">
+      <td className="hero-icon-cell" />
+      <td className="hero-name-cell">
+        <div className="text-dim small">{unitDisplayName(unit.unitname)}</div>
+      </td>
+      <td className="scoreboard-group-start">-</td>
+      <td className="scoreboard-kda-cell">-</td>
+      <td className="scoreboard-kda-cell">-</td>
+      <td className="scoreboard-kda-cell">-</td>
+      <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.nw }}>
+        -
+      </td>
+      <td className="scoreboard-group-start scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.items }}>
+        <ItemIcons ids={itemIdsFor(unit)} />
+      </td>
+      <td className="scoreboard-group-start">-</td>
+      <td>-</td>
+      <td>-</td>
+      <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
+        -
+      </td>
+      <td className="scoreboard-group-start">-</td>
+      <td>-</td>
+    </tr>
+  );
+}
 
 export function Scoreboard({
   players,
@@ -102,60 +152,57 @@ export function Scoreboard({
       </thead>
       <tbody>
         {players.map((p) => {
-          const items = [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5, p.item_neutral].filter(
-            (id) => id,
-          );
           const apm = computeApm(p.actions, duration);
           return (
-            <tr key={p.player_slot}>
-              <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
-              <td className="hero-name-cell">
-                <div title={heroName(p.hero_id)}>{heroName(p.hero_id)}</div>
-                {(p.personaname || p.rank_tier) && (
-                  <div className="player-meta text-dim small">
-                    {p.personaname && (
-                      <div className="player-name" title={p.personaname}>
-                        {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
-                      </div>
-                    )}
-                    {/* Own line rather than inline after the name - always
-                        rendered (blank when there's no rank) so every
-                        row's height stays the same regardless of whether
-                        that particular player has a visible rank. */}
-                    <div className="player-rank">
-                      {p.rank_tier ? (
-                        <span style={{ color: rankTierColor(p.rank_tier) ?? undefined }}>{rankTierLabel(p.rank_tier)}</span>
-                      ) : (
-                        " "
+            <Fragment key={p.player_slot}>
+              <tr>
+                <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
+                <td className="hero-name-cell">
+                  <div title={heroName(p.hero_id)}>{heroName(p.hero_id)}</div>
+                  {(p.personaname || p.rank_tier) && (
+                    <div className="player-meta text-dim small">
+                      {p.personaname && (
+                        <div className="player-name" title={p.personaname}>
+                          {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
+                        </div>
                       )}
+                      {/* Own line rather than inline after the name - always
+                          rendered (blank when there's no rank) so every
+                          row's height stays the same regardless of whether
+                          that particular player has a visible rank. */}
+                      <div className="player-rank">
+                        {p.rank_tier ? (
+                          <span style={{ color: rankTierColor(p.rank_tier) ?? undefined }}>{rankTierLabel(p.rank_tier)}</span>
+                        ) : (
+                          " "
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </td>
-              <td className="scoreboard-group-start">{p.level}</td>
-              <td className="scoreboard-kda-cell">{p.kills}</td>
-              <td className="scoreboard-kda-cell">{p.deaths}</td>
-              <td className="scoreboard-kda-cell">{p.assists}</td>
-              <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.nw }}>
-                {p.net_worth ?? "-"}
-              </td>
-              <td className="scoreboard-group-start scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.items }}>
-                <div className="item-row">
-                  {items.map((id, idx) => {
-                    const img = itemImage(id);
-                    return img ? <img key={idx} src={img} alt={itemName(id)} title={itemName(id)} className="item-icon" /> : null;
-                  })}
-                </div>
-              </td>
-              <td className="scoreboard-group-start">{p.last_hits}</td>
-              <td>{p.denies}</td>
-              <td>{p.gold_per_min}</td>
-              <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
-                {p.xp_per_min}
-              </td>
-              <td className="scoreboard-group-start">{apm ?? "-"}</td>
-              <td>{p.pings ?? "-"}</td>
-            </tr>
+                  )}
+                </td>
+                <td className="scoreboard-group-start">{p.level}</td>
+                <td className="scoreboard-kda-cell">{p.kills}</td>
+                <td className="scoreboard-kda-cell">{p.deaths}</td>
+                <td className="scoreboard-kda-cell">{p.assists}</td>
+                <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.nw }}>
+                  {p.net_worth ?? "-"}
+                </td>
+                <td className="scoreboard-group-start scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.items }}>
+                  <ItemIcons ids={itemIdsFor(p)} />
+                </td>
+                <td className="scoreboard-group-start">{p.last_hits}</td>
+                <td>{p.denies}</td>
+                <td>{p.gold_per_min}</td>
+                <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
+                  {p.xp_per_min}
+                </td>
+                <td className="scoreboard-group-start">{apm ?? "-"}</td>
+                <td>{p.pings ?? "-"}</td>
+              </tr>
+              {p.additional_units?.map((unit) => (
+                <SummonRow key={unit.unitname} unit={unit} extraPadding={extraPadding} />
+              ))}
+            </Fragment>
           );
         })}
       </tbody>

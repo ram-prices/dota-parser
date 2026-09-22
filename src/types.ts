@@ -142,6 +142,24 @@ export interface MatchPlayer {
   is_roaming?: boolean;
   position_est?: number | null;
   benchmarks?: Record<string, { raw?: number; pct?: number }>;
+  // Persistent controllable summons with their own inventory - currently
+  // only ever populated for Lone Druid's Spirit Bear.
+  additional_units?: AdditionalUnit[];
+}
+
+export interface AdditionalUnit {
+  unitname: string;
+  item_0: number;
+  item_1: number;
+  item_2: number;
+  item_3: number;
+  item_4: number;
+  item_5: number;
+  backpack_0?: number;
+  backpack_1?: number;
+  backpack_2?: number;
+  item_neutral?: number;
+  item_neutral2?: number;
 }
 
 export interface ObjectiveEntry {

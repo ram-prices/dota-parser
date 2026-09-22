@@ -749,6 +749,19 @@ tbody tr:last-child td {
   padding-right: 4px;
 }
 
+/* Right under a player with a persistent inventory-holding summon (Lone
+   Druid's Spirit Bear) - visually subordinate to the real player row
+   above it: smaller, dimmer, tighter, no hover highlight of its own. */
+.scoreboard-summon-row td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.scoreboard-summon-row:hover {
+  background: transparent;
+}
+
 /* Instead of free-scrolling through 12 stat columns, scrolling/swiping
    snaps to the start of each logical group (Lvl/KDA/Net Worth, Items,
    LH/DN/GPM/XPM, APM/Pings) - scroll-padding-left keeps a snapped group
