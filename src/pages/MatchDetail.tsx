@@ -5,6 +5,7 @@ import { invalidate } from "../cache";
 import type { MatchDetail as MatchDetailType, MatchPlayer } from "../types";
 import {
   abilityById,
+  averageRankLabel,
   formatDuration,
   formatGameTime,
   matchModeLabel,
@@ -552,6 +553,10 @@ export function MatchDetail() {
         <h2 className={data.radiant_win ? "radiant-won" : "dire-won"}>{data.radiant_win ? "Radiant Victory" : "Dire Victory"}</h2>
         <div className="match-meta">
           {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type)} &middot; match {data.match_id}
+          {(() => {
+            const avg = averageRankLabel(data.players.map((p) => p.rank_tier));
+            return avg ? <> &middot; ~{avg} average</> : null;
+          })()}
         </div>
         {!isParsed && (
           <div className="error-box small">

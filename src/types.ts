@@ -83,6 +83,7 @@ export interface MatchPlayer {
   personaname: string | null;
   isRadiant: boolean;
   win: number;
+  rank_tier?: number | null;
   kills: number;
   deaths: number;
   assists: number;
@@ -173,6 +174,7 @@ export interface MatchDetail {
   lobby_type: number;
   radiant_score?: number;
   dire_score?: number;
+  skill?: number | null;
   radiant_gold_adv?: number[];
   radiant_xp_adv?: number[];
   chat?: ChatEntry[];

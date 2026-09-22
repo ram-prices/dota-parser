@@ -137,6 +137,42 @@ export function laneRoleName(role: number | undefined | null): string {
   return LANE_ROLES[role] ?? `Lane ${role}`;
 }
 
+// rank_tier is a per-player field: tens digit = medal (1 Herald .. 8
+// Immortal), ones digit = star within that medal (1-5; Immortal has no
+// stars). This is the reliable "skill level" signal - the match-level
+// `skill` estimate OpenDota also exposes is only computed for a subset of
+// matches and is frequently null.
+const MEDALS: Record<number, string> = {
+  1: "Herald",
+  2: "Guardian",
+  3: "Crusader",
+  4: "Archon",
+  5: "Legend",
+  6: "Ancient",
+  7: "Divine",
+  8: "Immortal",
+};
+
+export function rankTierLabel(tier: number | undefined | null): string {
+  if (!tier) return "Unranked";
+  const medal = Math.floor(tier / 10);
+  const star = tier % 10;
+  const name = MEDALS[medal];
+  if (!name) return "Unranked";
+  if (medal === 8) return "Immortal";
+  return star > 0 ? `${name} ${star}` : name;
+}
+
+// Average medal across a team/match, for an at-a-glance "skill level of
+// this game" summary. Averages just the medal (not the star), since
+// averaging stars across different medals isn't meaningful.
+export function averageRankLabel(tiers: Array<number | null | undefined>): string | null {
+  const medals = tiers.filter((t): t is number => Boolean(t)).map((t) => Math.floor(t / 10));
+  if (medals.length === 0) return null;
+  const avg = Math.round(medals.reduce((sum, m) => sum + m, 0) / medals.length);
+  return MEDALS[avg] ?? null;
+}
+
 const OBJECTIVE_LABELS: Record<string, string> = {
   CHAT_MESSAGE_TOWER_KILL: "Tower destroyed",
   CHAT_MESSAGE_TOWER_DENY: "Tower deny",
