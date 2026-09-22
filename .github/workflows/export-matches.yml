@@ -192,3 +192,41 @@ jobs:
               echo "- All matches exported!"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rebuild match-extras-index.json
+        run: |
+          set -uo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # A few extra per-match fields (each side's hero picks, the patch
+          # index) that only live on the full match detail, not the
+          # lightweight matches-index.json above - pulled into their own
+          # small index so the dashboard can filter by them without
+          # fetching every file under matches/. Always a full rebuild from
+          # whatever's already on disk (cheap - local reads, no API calls),
+          # so it stays complete even if this run didn't fetch anything new.
+          find matches -name '*.json' -print0 |
+            xargs -0 -n 500 jq -c '{
+              match_id,
+              radiant: ([.players[]? | select((.player_slot // 0) < 128) | .hero_id] | map(select(. != null))),
+              dire: ([.players[]? | select((.player_slot // 0) >= 128) | .hero_id] | map(select(. != null))),
+              patch
+            }' > /tmp/extras.jsonl
+
+          jq -s -c 'sort_by(.match_id) | reverse' /tmp/extras.jsonl > match-extras-index.json
+
+          git add match-extras-index.json
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Rebuild match-extras-index.json [skip ci]"
+            for attempt in 1 2 3; do
+              if git push -q; then
+                break
+              fi
+              echo "Push rejected - rebasing and retrying ($attempt/3)..."
+              git pull --rebase -q
+            done
+          else
+            echo "match-extras-index.json unchanged."
+          fi

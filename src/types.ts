@@ -37,6 +37,16 @@ export interface MatchSummary {
   party_size?: number | null;
 }
 
+// A few fields that only exist on a match's full detail, not the
+// lightweight MatchSummary above - see match-extras-index.json's README
+// entry on the data branch.
+export interface MatchExtras {
+  match_id: number;
+  radiant: number[];
+  dire: number[];
+  patch?: number;
+}
+
 export interface HeroStat {
   hero_id: number;
   last_played: number;

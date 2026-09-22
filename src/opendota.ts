@@ -1,7 +1,7 @@
 import { getApiKey } from "./settings";
 import { cached, cachedForever } from "./cache";
 import { isRadiant } from "./dota";
-import type { HeroStat, MatchDetail, MatchSummary, PeerStat, PlayerProfile, WinLoss } from "./types";
+import type { HeroStat, MatchDetail, MatchExtras, MatchSummary, PeerStat, PlayerProfile, WinLoss } from "./types";
 
 const BASE = "https://api.opendota.com/api";
 
@@ -12,6 +12,7 @@ const BASE = "https://api.opendota.com/api";
 const DATA_BRANCH_ROOT = "https://raw.githubusercontent.com/ram-prices/dota-parser/data";
 const DATA_BRANCH_MATCHES = `${DATA_BRANCH_ROOT}/matches`;
 const DATA_BRANCH_INDEX = `${DATA_BRANCH_ROOT}/matches-index.json`;
+const DATA_BRANCH_EXTRAS_INDEX = `${DATA_BRANCH_ROOT}/match-extras-index.json`;
 
 // Lists change as you play, so cache them briefly rather than forever.
 const LIST_TTL_MS = 5 * 60 * 1000;
@@ -42,6 +43,22 @@ async function getStoredMatchIndex(): Promise<MatchSummary[] | null> {
       const res = await fetch(DATA_BRANCH_INDEX);
       if (!res.ok) return null;
       return (await res.json()) as MatchSummary[];
+    } catch {
+      return null;
+    }
+  });
+}
+
+// Team compositions + patch per match - see match-extras-index.json's
+// README entry on the data branch. Only exists for matches that were
+// fully exported (all of them, as of this account's last export run);
+// null when the file itself isn't available.
+async function getStoredMatchExtrasIndex(): Promise<MatchExtras[] | null> {
+  return cached("match-extras-index", LIST_TTL_MS, async () => {
+    try {
+      const res = await fetch(DATA_BRANCH_EXTRAS_INDEX);
+      if (!res.ok) return null;
+      return (await res.json()) as MatchExtras[];
     } catch {
       return null;
     }
@@ -124,6 +141,10 @@ export function getMatches(
 // path instead, which doesn't expose the full history needed for these).
 export function getMatchIndexForStats(): Promise<MatchSummary[] | null> {
   return getStoredMatchIndex();
+}
+
+export function getMatchExtrasIndex(): Promise<MatchExtras[] | null> {
+  return getStoredMatchExtrasIndex();
 }
 
 export function getHeroStats(accountId: number): Promise<HeroStat[]> {

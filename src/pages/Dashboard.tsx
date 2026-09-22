@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getMatch, getMatchIndexForStats, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
-import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
+import { getMatch, getMatchExtrasIndex, getMatchIndexForStats, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
+import type { MatchExtras, MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
   averageRankTier,
   effectiveGameModeKey,
@@ -16,6 +16,7 @@ import {
   laneOutcomeLabel,
   matchGameModeLabel,
   matchLobbyLabel,
+  patchLabel,
   positionLabel,
   positionShort,
   rankTierColor,
@@ -93,6 +94,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
   const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
+  const initialTeammateHero = Math.floor(Number(searchParams.get("teamHero"))) || 0;
+  const initialEnemyHero = Math.floor(Number(searchParams.get("enemyHero"))) || 0;
+  const initialPatch = Math.floor(Number(searchParams.get("patch"))) || 0;
 
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wl, setWl] = useState<WinLoss | null>(null);
@@ -103,6 +107,11 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // properly would mean a lot more plumbing for a rare fallback path).
   const [allMatches, setAllMatches] = useState<MatchSummary[] | null | undefined>(undefined);
   const [fallbackMatches, setFallbackMatches] = useState<MatchSummary[] | null>(null);
+  // Team compositions + patch per match - a separate, optional index (see
+  // match-extras-index.json's README on the data branch). Filters that
+  // need it (teammate/enemy hero, patch) just don't match anything for a
+  // match this doesn't cover, rather than the whole page depending on it.
+  const [extrasIndex, setExtrasIndex] = useState<MatchExtras[] | null>(null);
 
   const [page, setPage] = useState(initialPage);
   const [heroFilter, setHeroFilter] = useState(initialHero);
@@ -112,6 +121,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
+  const [teammateHeroFilter, setTeammateHeroFilter] = useState(initialTeammateHero);
+  const [enemyHeroFilter, setEnemyHeroFilter] = useState(initialEnemyHero);
+  const [patchFilter, setPatchFilter] = useState(initialPatch);
 
   // undefined = still loading, null = loaded but no rank data available
   const [ranks, setRanks] = useState<Record<number, number | null | undefined>>({});
@@ -127,6 +139,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
     faction?: FactionFilter;
     party?: PartyFilter;
     time?: TimeRangeFilter;
+    teammateHero?: number;
+    enemyHero?: number;
+    patch?: number;
   }) {
     const merged = {
       page,
@@ -137,6 +152,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
       faction: factionFilter,
       party: partyFilter,
       time: timeRangeFilter,
+      teammateHero: teammateHeroFilter,
+      enemyHero: enemyHeroFilter,
+      patch: patchFilter,
       ...next,
     };
     setSearchParams(
@@ -158,6 +176,12 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("party", merged.party);
         if (merged.time === "all") params.delete("time");
         else params.set("time", merged.time);
+        if (!merged.teammateHero) params.delete("teamHero");
+        else params.set("teamHero", String(merged.teammateHero));
+        if (!merged.enemyHero) params.delete("enemyHero");
+        else params.set("enemyHero", String(merged.enemyHero));
+        if (!merged.patch) params.delete("patch");
+        else params.set("patch", String(merged.patch));
         return params;
       },
       { replace: true },
@@ -170,6 +194,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
     if (next.faction !== undefined) setFactionFilter(next.faction);
     if (next.party !== undefined) setPartyFilter(next.party);
     if (next.time !== undefined) setTimeRangeFilter(next.time);
+    if (next.teammateHero !== undefined) setTeammateHeroFilter(next.teammateHero);
+    if (next.enemyHero !== undefined) setEnemyHeroFilter(next.enemyHero);
+    if (next.patch !== undefined) setPatchFilter(next.patch);
   }
 
   useEffect(() => {
@@ -178,6 +205,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     setError(null);
     setAllMatches(undefined);
     setFallbackMatches(null);
+    setExtrasIndex(null);
 
     Promise.all([getProfile(accountId), getWinLoss(accountId)])
       .then(([p, w]) => {
@@ -189,6 +217,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
     getMatchIndexForStats()
       .then(setAllMatches)
       .catch(() => setAllMatches(null));
+
+    getMatchExtrasIndex()
+      .then(setExtrasIndex)
+      .catch(() => setExtrasIndex(null));
   }, [accountId]);
 
   // Only reached when the stored index isn't available - no filters or
@@ -205,6 +237,45 @@ export function Dashboard({ accountId }: { accountId: number }) {
     if (!allMatches) return [];
     return Array.from(new Set(allMatches.map((m) => m.hero_id))).sort((a, b) => heroName(a).localeCompare(heroName(b)));
   }, [allMatches]);
+
+  const extrasByMatchId = useMemo(() => {
+    if (!extrasIndex) return null;
+    return new Map(extrasIndex.map((e) => [e.match_id, e]));
+  }, [extrasIndex]);
+
+  // Every hero that's ever shared your side (teammate) or the other side
+  // (enemy) across your whole history - only as accurate as the extras
+  // index's coverage (all matches, as of this account's last export run).
+  const teammateHeroOptions = useMemo(() => {
+    if (!allMatches || !extrasByMatchId) return [];
+    const ids = new Set<number>();
+    for (const m of allMatches) {
+      const extra = extrasByMatchId.get(m.match_id);
+      if (!extra) continue;
+      const mySide = isRadiant(m.player_slot) ? extra.radiant : extra.dire;
+      for (const h of mySide) if (h !== m.hero_id) ids.add(h);
+    }
+    return Array.from(ids).sort((a, b) => heroName(a).localeCompare(heroName(b)));
+  }, [allMatches, extrasByMatchId]);
+
+  const enemyHeroOptions = useMemo(() => {
+    if (!allMatches || !extrasByMatchId) return [];
+    const ids = new Set<number>();
+    for (const m of allMatches) {
+      const extra = extrasByMatchId.get(m.match_id);
+      if (!extra) continue;
+      const enemySide = isRadiant(m.player_slot) ? extra.dire : extra.radiant;
+      for (const h of enemySide) ids.add(h);
+    }
+    return Array.from(ids).sort((a, b) => heroName(a).localeCompare(heroName(b)));
+  }, [allMatches, extrasByMatchId]);
+
+  const patchOptions = useMemo(() => {
+    if (!extrasIndex) return [];
+    const ids = new Set<number>();
+    for (const e of extrasIndex) if (e.patch != null) ids.add(e.patch);
+    return Array.from(ids).sort((a, b) => b - a);
+  }, [extrasIndex]);
 
   const isEventModeActive = modeFilter.includes("event");
   const isNormalModeActive = modeFilter.some((v) => v !== "event");
@@ -253,9 +324,35 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (partyFilter === "party" && solo) return false;
       }
       if (cutoff != null && m.start_time < cutoff) return false;
+      if (teammateHeroFilter || enemyHeroFilter || patchFilter) {
+        const extra = extrasByMatchId?.get(m.match_id);
+        if (!extra) return false;
+        if (teammateHeroFilter) {
+          const mySide = isRadiant(m.player_slot) ? extra.radiant : extra.dire;
+          if (!mySide.includes(teammateHeroFilter) || teammateHeroFilter === m.hero_id) return false;
+        }
+        if (enemyHeroFilter) {
+          const enemySide = isRadiant(m.player_slot) ? extra.dire : extra.radiant;
+          if (!enemySide.includes(enemyHeroFilter)) return false;
+        }
+        if (patchFilter && extra.patch !== patchFilter) return false;
+      }
       return true;
     });
-  }, [allMatches, heroFilter, resultFilter, modeFilter, gameModeFilter, factionFilter, partyFilter, timeRangeFilter]);
+  }, [
+    allMatches,
+    heroFilter,
+    resultFilter,
+    modeFilter,
+    gameModeFilter,
+    factionFilter,
+    partyFilter,
+    timeRangeFilter,
+    teammateHeroFilter,
+    enemyHeroFilter,
+    patchFilter,
+    extrasByMatchId,
+  ]);
 
   const totalPages = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : null;
   const clampedPage = totalPages != null ? Math.min(page, totalPages) : page;
@@ -303,7 +400,18 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // record - from OpenDota's own aggregated /wl endpoint - only when
   // there's no filtered set to derive it from, i.e. the live-API
   // fallback path, where filters are hidden anyway).
-  const isFiltered = Boolean(heroFilter || resultFilter !== "all" || modeFilter.length > 0 || gameModeFilter || factionFilter !== "all" || partyFilter !== "all" || timeRangeFilter !== "all");
+  const isFiltered = Boolean(
+    heroFilter ||
+      resultFilter !== "all" ||
+      modeFilter.length > 0 ||
+      gameModeFilter ||
+      factionFilter !== "all" ||
+      partyFilter !== "all" ||
+      timeRangeFilter !== "all" ||
+      teammateHeroFilter ||
+      enemyHeroFilter ||
+      patchFilter,
+  );
   const filteredWins = filtered?.filter(matchWon).length ?? 0;
   const displayWl = filtered ? { win: filteredWins, lose: filtered.length - filteredWins } : wl;
   const winRate = displayWl.win + displayWl.lose > 0 ? Math.round((100 * displayWl.win) / (displayWl.win + displayWl.lose)) : 0;
@@ -351,6 +459,26 @@ export function Dashboard({ accountId }: { accountId: number }) {
               </option>
             ))}
           </select>
+          {extrasByMatchId && (
+            <>
+              <select value={teammateHeroFilter} onChange={(e) => updateParams({ teammateHero: Number(e.target.value), page: 1 })}>
+                <option value={0}>Any Teammate Hero</option>
+                {teammateHeroOptions.map((id) => (
+                  <option key={id} value={id}>
+                    {heroName(id)}
+                  </option>
+                ))}
+              </select>
+              <select value={enemyHeroFilter} onChange={(e) => updateParams({ enemyHero: Number(e.target.value), page: 1 })}>
+                <option value={0}>Any Enemy Hero</option>
+                {enemyHeroOptions.map((id) => (
+                  <option key={id} value={id}>
+                    {heroName(id)}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <select value={resultFilter} onChange={(e) => updateParams({ result: e.target.value as ResultFilter, page: 1 })}>
             <option value="all">All Results</option>
             <option value="win">Wins</option>
@@ -412,6 +540,16 @@ export function Dashboard({ accountId }: { accountId: number }) {
               </option>
             ))}
           </select>
+          {extrasByMatchId && (
+            <select value={patchFilter} onChange={(e) => updateParams({ patch: Number(e.target.value), page: 1 })}>
+              <option value={0}>All Patches</option>
+              {patchOptions.map((id) => (
+                <option key={id} value={id}>
+                  {patchLabel(id)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 

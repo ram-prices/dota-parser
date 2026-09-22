@@ -3,6 +3,7 @@ import heroesByNameData from "./data/heroesByName.json";
 import itemsData from "./data/items.json";
 import itemsByNameData from "./data/itemsByName.json";
 import abilitiesData from "./data/abilities.json";
+import patchesData from "./data/patches.json";
 import type { MatchDetail, MatchPlayer, ObjectiveEntry } from "./types";
 
 const CDN = "https://cdn.cloudflare.steamstatic.com";
@@ -17,6 +18,15 @@ const heroesByName = heroesByNameData as Record<string, HeroEntry>;
 const itemsById = itemsData as Record<string, ItemEntry>;
 const itemsByName = itemsByNameData as Record<string, ItemByNameEntry>;
 const abilitiesById = abilitiesData as Record<string, AbilityEntry>;
+// OpenDota's own patch index -> version string mapping (odota/dotaconstants
+// patch.json), bundled locally rather than fetched live since it changes
+// maybe a handful of times a year.
+const patchesById = patchesData as Record<string, string>;
+
+export function patchLabel(patchId: number | undefined | null): string {
+  if (patchId == null) return "Unknown";
+  return patchesById[String(patchId)] ?? `Patch ${patchId}`;
+}
 
 export function heroName(heroId: number | undefined | null): string {
   if (!heroId) return "Unknown Hero";
