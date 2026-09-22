@@ -965,6 +965,59 @@ tbody tr:last-child td {
   font-size: 24px;
 }
 
+/* Win/loss/win-rate/match-count summary row underneath the profile header
+   - reflects whatever match filters are currently applied on the Matches
+   tab, so it doubles as a quick "here's what this filtered set adds up
+   to" readout instead of always showing the unfiltered all-time record. */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-lg);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  box-shadow: var(--elevation-1);
+}
+.profile-stat {
+  min-width: 0;
+  text-align: center;
+}
+.profile-stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+}
+.profile-stat-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.profile-stat-bar-track {
+  height: 4px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-high);
+  overflow: hidden;
+  margin: 6px auto 0;
+  max-width: 80px;
+}
+.profile-stat-bar {
+  height: 100%;
+  border-radius: var(--shape-full);
+  background: var(--md-primary);
+  transition: width var(--duration-long) var(--motion-spring);
+}
+@media (max-width: 480px) {
+  .profile-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 14px;
+  }
+}
+
 .vs-stat {
   font-family: var(--font-display);
   font-size: 40px;

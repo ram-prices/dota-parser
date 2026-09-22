@@ -23,6 +23,24 @@ const PAGE_SIZE = 30;
 
 type ResultFilter = "all" | "win" | "loss";
 type ModeFilter = "all" | "ranked" | "unranked";
+type FactionFilter = "all" | "radiant" | "dire";
+type PartyFilter = "all" | "solo" | "party";
+type TimeRangeFilter = "all" | "7d" | "30d" | "90d" | "180d" | "365d";
+
+const TIME_RANGE_LABELS: Record<Exclude<TimeRangeFilter, "all">, string> = {
+  "7d": "Last 7 Days",
+  "30d": "Last 30 Days",
+  "90d": "Last 3 Months",
+  "180d": "Last 6 Months",
+  "365d": "Last Year",
+};
+const TIME_RANGE_DAYS: Record<Exclude<TimeRangeFilter, "all">, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "180d": 180,
+  "365d": 365,
+};
 
 function matchWon(m: MatchSummary): boolean {
   return isRadiant(m.player_slot) === m.radiant_win;
@@ -39,6 +57,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialHero = Math.floor(Number(searchParams.get("hero"))) || 0;
   const initialResult = (searchParams.get("result") as ResultFilter) || "all";
   const initialMode = (searchParams.get("mode") as ModeFilter) || "all";
+  const initialGameMode = Math.floor(Number(searchParams.get("gm"))) || 0;
+  const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
+  const initialParty = (searchParams.get("party") as PartyFilter) || "all";
+  const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
 
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wl, setWl] = useState<WinLoss | null>(null);
@@ -54,14 +76,37 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [heroFilter, setHeroFilter] = useState(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
   const [modeFilter, setModeFilter] = useState<ModeFilter>(initialMode);
+  const [gameModeFilter, setGameModeFilter] = useState(initialGameMode);
+  const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
+  const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
+  const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
 
   // undefined = still loading, null = loaded but no rank data available
   const [ranks, setRanks] = useState<Record<number, number | null | undefined>>({});
   const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
   const [lanes, setLanes] = useState<Record<number, LaneOutcome | null | undefined>>({});
 
-  function updateParams(next: { page?: number; hero?: number; result?: ResultFilter; mode?: ModeFilter }) {
-    const merged = { page, hero: heroFilter, result: resultFilter, mode: modeFilter, ...next };
+  function updateParams(next: {
+    page?: number;
+    hero?: number;
+    result?: ResultFilter;
+    mode?: ModeFilter;
+    gameMode?: number;
+    faction?: FactionFilter;
+    party?: PartyFilter;
+    time?: TimeRangeFilter;
+  }) {
+    const merged = {
+      page,
+      hero: heroFilter,
+      result: resultFilter,
+      mode: modeFilter,
+      gameMode: gameModeFilter,
+      faction: factionFilter,
+      party: partyFilter,
+      time: timeRangeFilter,
+      ...next,
+    };
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev);
@@ -73,6 +118,14 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("result", merged.result);
         if (merged.mode === "all") params.delete("mode");
         else params.set("mode", merged.mode);
+        if (!merged.gameMode) params.delete("gm");
+        else params.set("gm", String(merged.gameMode));
+        if (merged.faction === "all") params.delete("faction");
+        else params.set("faction", merged.faction);
+        if (merged.party === "all") params.delete("party");
+        else params.set("party", merged.party);
+        if (merged.time === "all") params.delete("time");
+        else params.set("time", merged.time);
         return params;
       },
       { replace: true },
@@ -81,6 +134,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
     if (next.hero !== undefined) setHeroFilter(next.hero);
     if (next.result !== undefined) setResultFilter(next.result);
     if (next.mode !== undefined) setModeFilter(next.mode);
+    if (next.gameMode !== undefined) setGameModeFilter(next.gameMode);
+    if (next.faction !== undefined) setFactionFilter(next.faction);
+    if (next.party !== undefined) setPartyFilter(next.party);
+    if (next.time !== undefined) setTimeRangeFilter(next.time);
   }
 
   useEffect(() => {
@@ -117,8 +174,14 @@ export function Dashboard({ accountId }: { accountId: number }) {
     return Array.from(new Set(allMatches.map((m) => m.hero_id))).sort((a, b) => heroName(a).localeCompare(heroName(b)));
   }, [allMatches]);
 
+  const gameModeOptions = useMemo(() => {
+    if (!allMatches) return [];
+    return Array.from(new Set(allMatches.map((m) => m.game_mode))).sort((a, b) => gameModeName(a).localeCompare(gameModeName(b)));
+  }, [allMatches]);
+
   const filtered = useMemo(() => {
     if (!allMatches) return null;
+    const cutoff = timeRangeFilter !== "all" ? Date.now() / 1000 - TIME_RANGE_DAYS[timeRangeFilter] * 86400 : null;
     return allMatches.filter((m) => {
       if (heroFilter && m.hero_id !== heroFilter) return false;
       if (resultFilter !== "all") {
@@ -131,9 +194,21 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (modeFilter === "ranked" && !ranked) return false;
         if (modeFilter === "unranked" && ranked) return false;
       }
+      if (gameModeFilter && m.game_mode !== gameModeFilter) return false;
+      if (factionFilter !== "all") {
+        const radiant = isRadiant(m.player_slot);
+        if (factionFilter === "radiant" && !radiant) return false;
+        if (factionFilter === "dire" && radiant) return false;
+      }
+      if (partyFilter !== "all") {
+        const solo = !m.party_size || m.party_size <= 1;
+        if (partyFilter === "solo" && !solo) return false;
+        if (partyFilter === "party" && solo) return false;
+      }
+      if (cutoff != null && m.start_time < cutoff) return false;
       return true;
     });
-  }, [allMatches, heroFilter, resultFilter, modeFilter]);
+  }, [allMatches, heroFilter, resultFilter, modeFilter, gameModeFilter, factionFilter, partyFilter, timeRangeFilter]);
 
   const totalPages = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : null;
   const clampedPage = totalPages != null ? Math.min(page, totalPages) : page;
@@ -176,7 +251,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
   if (error) return <div className="error-box">{error}</div>;
   if (!profile || !wl || allMatches === undefined || !pageMatches) return <div className="loading">Loading from OpenDota...</div>;
 
-  const winRate = wl.win + wl.lose > 0 ? Math.round((100 * wl.win) / (wl.win + wl.lose)) : 0;
+  // When the index is available, the stat row reflects whatever filters
+  // are currently applied (falling back to the unfiltered all-time wl
+  // record - from OpenDota's own aggregated /wl endpoint - only when
+  // there's no filtered set to derive it from, i.e. the live-API
+  // fallback path, where filters are hidden anyway).
+  const isFiltered = Boolean(heroFilter || resultFilter !== "all" || modeFilter !== "all" || gameModeFilter || factionFilter !== "all" || partyFilter !== "all" || timeRangeFilter !== "all");
+  const filteredWins = filtered?.filter(matchWon).length ?? 0;
+  const displayWl = filtered ? { win: filteredWins, lose: filtered.length - filteredWins } : wl;
+  const winRate = displayWl.win + displayWl.lose > 0 ? Math.round((100 * displayWl.win) / (displayWl.win + displayWl.lose)) : 0;
   const hasNext = totalPages != null && clampedPage < totalPages;
   const hasPrev = clampedPage > 1;
 
@@ -186,9 +269,28 @@ export function Dashboard({ accountId }: { accountId: number }) {
         {profile.profile?.avatarfull && <img src={profile.profile.avatarfull} alt="" className="avatar" />}
         <div>
           <h2>{profile.profile?.personaname ?? `Account ${accountId}`}</h2>
-          <p className="text-dim">
-            {wl.win}W&nbsp;-&nbsp;{wl.lose}L ({winRate}% winrate, last {wl.win + wl.lose} recorded matches)
-          </p>
+        </div>
+      </div>
+
+      <div className="profile-stats">
+        <div className="profile-stat">
+          <div className="profile-stat-value text-radiant">{displayWl.win}</div>
+          <div className="profile-stat-label">Wins</div>
+        </div>
+        <div className="profile-stat">
+          <div className="profile-stat-value text-dire">{displayWl.lose}</div>
+          <div className="profile-stat-label">Losses</div>
+        </div>
+        <div className="profile-stat profile-stat-winrate">
+          <div className="profile-stat-value">{winRate}%</div>
+          <div className="profile-stat-bar-track">
+            <div className="profile-stat-bar" style={{ width: `${winRate}%` }} />
+          </div>
+          <div className="profile-stat-label">Win Rate</div>
+        </div>
+        <div className="profile-stat">
+          <div className="profile-stat-value">{displayWl.win + displayWl.lose}</div>
+          <div className="profile-stat-label">{isFiltered ? "Filtered Matches" : "Total Matches"}</div>
         </div>
       </div>
 
@@ -211,6 +313,32 @@ export function Dashboard({ accountId }: { accountId: number }) {
             <option value="all">All Modes</option>
             <option value="ranked">Ranked</option>
             <option value="unranked">Unranked</option>
+          </select>
+          <select value={gameModeFilter} onChange={(e) => updateParams({ gameMode: Number(e.target.value), page: 1 })}>
+            <option value={0}>All Game Modes</option>
+            {gameModeOptions.map((mode) => (
+              <option key={mode} value={mode}>
+                {gameModeName(mode)}
+              </option>
+            ))}
+          </select>
+          <select value={factionFilter} onChange={(e) => updateParams({ faction: e.target.value as FactionFilter, page: 1 })}>
+            <option value="all">Radiant/Dire</option>
+            <option value="radiant">Radiant</option>
+            <option value="dire">Dire</option>
+          </select>
+          <select value={partyFilter} onChange={(e) => updateParams({ party: e.target.value as PartyFilter, page: 1 })}>
+            <option value="all">Solo/Party</option>
+            <option value="solo">Solo</option>
+            <option value="party">Party</option>
+          </select>
+          <select value={timeRangeFilter} onChange={(e) => updateParams({ time: e.target.value as TimeRangeFilter, page: 1 })}>
+            <option value="all">All Time</option>
+            {(Object.keys(TIME_RANGE_LABELS) as Array<keyof typeof TIME_RANGE_LABELS>).map((key) => (
+              <option key={key} value={key}>
+                {TIME_RANGE_LABELS[key]}
+              </option>
+            ))}
           </select>
         </div>
       )}
