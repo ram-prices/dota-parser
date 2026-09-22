@@ -140,12 +140,22 @@ jobs:
           # merge it into the existing index rather than re-fetching, so
           # this stays a single API call per run same as before. Only ever
           # adds/refreshes entries; nothing here ever needs to remove one.
-          existing="[]"
-          if [ -f matches-index.json ]; then
-            existing=$(cat matches-index.json)
+          #
+          # existing is read via --slurpfile (not into a shell variable
+          # passed through --argjson) since matches-index.json is now
+          # thousands of matches - large enough that passing it as a
+          # command-line argument hits the OS's ARG_MAX and fails with
+          # "Argument list too long". --slurpfile reads the file directly,
+          # so it has no such limit. Written to a temp file first since jq
+          # would otherwise read a truncated matches-index.json out from
+          # under itself (the shell truncates > matches-index.json before
+          # jq runs, but --slurpfile still needs to read the original).
+          if [ ! -f matches-index.json ]; then
+            echo "[]" > matches-index.json
           fi
-          jq -c -n --argjson existing "$existing" --slurpfile fresh /tmp/request-parse-matches.json \
-            '($fresh[0] + $existing) | unique_by(.match_id) | sort_by(.match_id) | reverse' > matches-index.json
+          jq -c -n --slurpfile existing matches-index.json --slurpfile fresh /tmp/request-parse-matches.json \
+            '($fresh[0] + $existing[0]) | unique_by(.match_id) | sort_by(.match_id) | reverse' > matches-index.json.tmp
+          mv matches-index.json.tmp matches-index.json
 
           git add matches-index.json
           if ! git diff --cached --quiet; then
