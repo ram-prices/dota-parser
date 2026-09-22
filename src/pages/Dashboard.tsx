@@ -23,10 +23,20 @@ import {
 const PAGE_SIZE = 30;
 
 type ResultFilter = "all" | "win" | "loss";
-type ModeFilter = "all" | "ranked" | "unranked";
 type FactionFilter = "all" | "radiant" | "dire";
 type PartyFilter = "all" | "solo" | "party";
 type TimeRangeFilter = "all" | "7d" | "30d" | "90d" | "180d" | "365d";
+
+// Mode is multi-select (any combination, or none = no filtering) rather
+// than a single dropdown value, since "show me Ranked and Bot Match but
+// not Unranked" is a perfectly normal thing to want. lobby_type values
+// per LOBBY_TYPES in dota.ts.
+const MODE_OPTIONS: { value: number; label: string }[] = [
+  { value: 7, label: "Ranked" },
+  { value: 0, label: "Unranked" },
+  { value: 4, label: "Bot Match" },
+  { value: 21, label: "Event" },
+];
 
 const TIME_RANGE_LABELS: Record<Exclude<TimeRangeFilter, "all">, string> = {
   "7d": "Last 7 Days",
@@ -57,7 +67,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialPage = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
   const initialHero = Math.floor(Number(searchParams.get("hero"))) || 0;
   const initialResult = (searchParams.get("result") as ResultFilter) || "all";
-  const initialMode = (searchParams.get("mode") as ModeFilter) || "all";
+  const rawModeParam = searchParams.get("mode");
+  const initialMode = rawModeParam
+    ? rawModeParam
+        .split(",")
+        .map(Number)
+        .filter((v) => MODE_OPTIONS.some((o) => o.value === v))
+    : [];
   const initialGameMode = Math.floor(Number(searchParams.get("gm"))) || 0;
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
@@ -76,7 +92,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [page, setPage] = useState(initialPage);
   const [heroFilter, setHeroFilter] = useState(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
-  const [modeFilter, setModeFilter] = useState<ModeFilter>(initialMode);
+  const [modeFilter, setModeFilter] = useState<number[]>(initialMode);
   const [gameModeFilter, setGameModeFilter] = useState(initialGameMode);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
@@ -91,7 +107,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     page?: number;
     hero?: number;
     result?: ResultFilter;
-    mode?: ModeFilter;
+    mode?: number[];
     gameMode?: number;
     faction?: FactionFilter;
     party?: PartyFilter;
@@ -117,8 +133,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("hero", String(merged.hero));
         if (merged.result === "all") params.delete("result");
         else params.set("result", merged.result);
-        if (merged.mode === "all") params.delete("mode");
-        else params.set("mode", merged.mode);
+        if (merged.mode.length === 0) params.delete("mode");
+        else params.set("mode", merged.mode.join(","));
         if (!merged.gameMode) params.delete("gm");
         else params.set("gm", String(merged.gameMode));
         if (merged.faction === "all") params.delete("faction");
@@ -190,11 +206,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (resultFilter === "win" && !won) return false;
         if (resultFilter === "loss" && won) return false;
       }
-      if (modeFilter !== "all") {
-        const ranked = m.lobby_type === 7;
-        if (modeFilter === "ranked" && !ranked) return false;
-        if (modeFilter === "unranked" && ranked) return false;
-      }
+      if (modeFilter.length > 0 && !modeFilter.includes(m.lobby_type)) return false;
       if (gameModeFilter && m.game_mode !== gameModeFilter) return false;
       if (factionFilter !== "all") {
         const radiant = isRadiant(m.player_slot);
@@ -257,7 +269,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // record - from OpenDota's own aggregated /wl endpoint - only when
   // there's no filtered set to derive it from, i.e. the live-API
   // fallback path, where filters are hidden anyway).
-  const isFiltered = Boolean(heroFilter || resultFilter !== "all" || modeFilter !== "all" || gameModeFilter || factionFilter !== "all" || partyFilter !== "all" || timeRangeFilter !== "all");
+  const isFiltered = Boolean(heroFilter || resultFilter !== "all" || modeFilter.length > 0 || gameModeFilter || factionFilter !== "all" || partyFilter !== "all" || timeRangeFilter !== "all");
   const filteredWins = filtered?.filter(matchWon).length ?? 0;
   const displayWl = filtered ? { win: filteredWins, lose: filtered.length - filteredWins } : wl;
   const winRate = displayWl.win + displayWl.lose > 0 ? Math.round((100 * displayWl.win) / (displayWl.win + displayWl.lose)) : 0;
@@ -310,11 +322,21 @@ export function Dashboard({ accountId }: { accountId: number }) {
             <option value="win">Wins</option>
             <option value="loss">Losses</option>
           </select>
-          <select value={modeFilter} onChange={(e) => updateParams({ mode: e.target.value as ModeFilter, page: 1 })}>
-            <option value="all">All Modes</option>
-            <option value="ranked">Ranked</option>
-            <option value="unranked">Unranked</option>
-          </select>
+          <div className="filter-chip-group">
+            {MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`filter-chip ${modeFilter.includes(opt.value) ? "filter-chip-active" : ""}`}
+                onClick={() => {
+                  const next = modeFilter.includes(opt.value) ? modeFilter.filter((v) => v !== opt.value) : [...modeFilter, opt.value];
+                  updateParams({ mode: next, page: 1 });
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <select value={gameModeFilter} onChange={(e) => updateParams({ gameMode: Number(e.target.value), page: 1 })}>
             <option value={0}>All Game Modes</option>
             {gameModeOptions.map((mode) => (

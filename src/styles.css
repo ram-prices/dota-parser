@@ -339,6 +339,33 @@ button {
 .match-filters {
   justify-content: flex-start;
 }
+.filter-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-chip {
+  background: var(--md-surface-container-high);
+  color: var(--text-dim);
+  border: 1px solid var(--md-outline-variant);
+  padding: 7px 13px;
+  border-radius: var(--shape-full);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background var(--duration-short) var(--motion-standard),
+    color var(--duration-short) var(--motion-standard),
+    border-color var(--duration-short) var(--motion-standard);
+}
+.filter-chip:hover {
+  border-color: var(--md-primary);
+}
+.filter-chip-active {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-color: var(--md-primary);
+}
 
 /* ============================================================
    Tables
