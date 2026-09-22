@@ -160,38 +160,48 @@ export function lobbyTypeLabel(lobbyType: number | undefined | null): string {
 // reads as "Unranked" like any other.
 const EVENT_GAME_MODES = new Set([7, 19, 24]);
 
-// Valve also ran several of its seasonal minigames (Frostivus, New Bloom
-// Festival, ...) under the generic Custom Game mode (15), with no field
-// of their own to say which one - only the date tells them apart, and
-// unlike the modes above, plain Custom Game is normally NOT a Valve event
-// (it's user-made Arcade content) except in these specific dated windows.
-// Only covers windows actually verified against real match dates from
-// this account; any other game_mode-15 match (a real user Arcade game, or
-// a seasonal event we haven't dated yet) is left as ordinary Custom Game.
-const SEASONAL_CUSTOM_GAMES: { key: string; label: string; start: number; end: number }[] = [
-  { key: "frostivus-2013", label: "Frostivus 2013", start: Date.UTC(2013, 11, 1) / 1000, end: Date.UTC(2014, 0, 1) / 1000 },
-  { key: "new-bloom-2014", label: "New Bloom 2014", start: Date.UTC(2014, 0, 25) / 1000, end: Date.UTC(2014, 2, 1) / 1000 },
+// Valve ran a long string of seasonal/tournament minigames under the
+// generic Custom Game (15) and Event Game (19) modes, with no field of
+// their own to say WHICH one - only the date tells them apart. Windows
+// below were identified by matching this account's actual game_mode-15/
+// 19 match timestamps against public Dota 2 event dates (Liquipedia/Dota
+// 2 Wiki/patch notes). Unlike Diretide/Mutation (always an event by
+// game_mode alone), Custom Game and generic Event Game aren't reliably
+// "an event" on their own - Custom Game is mostly real user-made Arcade
+// content, and Event Game can mean any one-off Valve minigame - so a
+// match only gets promoted out of the generic bucket when it falls in
+// one of these specifically-verified windows.
+const SEASONAL_EVENT_GAMES: { gameMode: number; key: string; label: string; start: number; end: number }[] = [
+  { gameMode: 15, key: "frostivus-2013", label: "Frostivus 2013", start: Date.UTC(2013, 11, 1) / 1000, end: Date.UTC(2014, 0, 1) / 1000 },
+  { gameMode: 15, key: "new-bloom-2014", label: "New Bloom 2014", start: Date.UTC(2014, 0, 25) / 1000, end: Date.UTC(2014, 2, 1) / 1000 },
+  { gameMode: 19, key: "new-bloom-2017", label: "New Bloom 2017", start: Date.UTC(2017, 0, 20) / 1000, end: Date.UTC(2017, 1, 10) / 1000 },
+  { gameMode: 19, key: "frostivus-2017", label: "Frostivus 2017", start: Date.UTC(2017, 11, 10) / 1000, end: Date.UTC(2018, 0, 5) / 1000 },
+  { gameMode: 19, key: "underhollow-2018", label: "The Underhollow (TI8)", start: Date.UTC(2018, 5, 14) / 1000, end: Date.UTC(2018, 8, 10) / 1000 },
+  { gameMode: 19, key: "frostivus-2018", label: "Frostivus 2018: Frosthaven", start: Date.UTC(2018, 11, 15) / 1000, end: Date.UTC(2019, 0, 10) / 1000 },
+  { gameMode: 19, key: "morokai-2019", label: "Wrath of the Mo'rokai (TI9)", start: Date.UTC(2019, 5, 25) / 1000, end: Date.UTC(2019, 8, 5) / 1000 },
+  { gameMode: 19, key: "diretide-2020", label: "Diretide 2020", start: Date.UTC(2020, 9, 25) / 1000, end: Date.UTC(2020, 11, 25) / 1000 },
+  { gameMode: 19, key: "frostivus-2021", label: "Frostivus 2021", start: Date.UTC(2021, 11, 10) / 1000, end: Date.UTC(2022, 0, 10) / 1000 },
 ];
 
-function seasonalCustomGame(gameMode: number | undefined | null, startTime: number | undefined | null) {
-  if (gameMode !== 15 || startTime == null) return null;
-  return SEASONAL_CUSTOM_GAMES.find((e) => startTime >= e.start && startTime < e.end) ?? null;
+function seasonalEventGame(gameMode: number | undefined | null, startTime: number | undefined | null) {
+  if (gameMode == null || startTime == null) return null;
+  return SEASONAL_EVENT_GAMES.find((e) => e.gameMode === gameMode && startTime >= e.start && startTime < e.end) ?? null;
 }
 
 // A single match's "effective" game mode - the raw game_mode number,
-// except a dated seasonal Custom Game match (Frostivus, New Bloom, ...)
-// gets its own distinct key instead of being lumped into generic Custom
-// Game (15) alongside every other Arcade game ever played. Number keys
+// except a dated seasonal event match (Frostivus, New Bloom, a Battle
+// Pass minigame, ...) gets its own distinct key instead of being lumped
+// in with every other match sharing that generic game_mode. Number keys
 // are real game_mode values; string keys are synthetic, only produced by
-// seasonalCustomGame() above.
+// seasonalEventGame() above.
 export type GameModeKey = number | string;
 
 export function effectiveGameModeKey(gameMode: number | undefined | null, startTime: number | undefined | null): GameModeKey {
-  return seasonalCustomGame(gameMode, startTime)?.key ?? (gameMode ?? 0);
+  return seasonalEventGame(gameMode, startTime)?.key ?? (gameMode ?? 0);
 }
 
 export function gameModeKeyLabel(key: GameModeKey): string {
-  if (typeof key === "string") return SEASONAL_CUSTOM_GAMES.find((e) => e.key === key)?.label ?? key;
+  if (typeof key === "string") return SEASONAL_EVENT_GAMES.find((e) => e.key === key)?.label ?? key;
   return gameModeName(key);
 }
 
