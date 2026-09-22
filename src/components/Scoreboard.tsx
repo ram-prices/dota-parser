@@ -18,18 +18,18 @@ export function Scoreboard({
       <thead>
         <tr>
           <th colSpan={2}>{teamLabel}</th>
-          <th>Lvl</th>
+          <th className="scoreboard-group-start">Lvl</th>
           <th>K</th>
           <th>D</th>
           <th>A</th>
-          <th>LH</th>
+          <th>Net Worth</th>
+          <th className="scoreboard-group-start">Items</th>
+          <th className="scoreboard-group-start">LH</th>
           <th>DN</th>
           <th>GPM</th>
           <th>XPM</th>
-          <th>APM</th>
+          <th className="scoreboard-group-start">APM</th>
           <th>Pings</th>
-          <th>Net Worth</th>
-          <th>Items</th>
         </tr>
       </thead>
       <tbody>
@@ -62,18 +62,12 @@ export function Scoreboard({
                   </div>
                 )}
               </td>
-              <td>{p.level}</td>
+              <td className="scoreboard-group-start">{p.level}</td>
               <td>{p.kills}</td>
               <td>{p.deaths}</td>
               <td>{p.assists}</td>
-              <td>{p.last_hits}</td>
-              <td>{p.denies}</td>
-              <td>{p.gold_per_min}</td>
-              <td>{p.xp_per_min}</td>
-              <td>{apm ?? "-"}</td>
-              <td>{p.pings ?? "-"}</td>
               <td>{p.net_worth ?? "-"}</td>
-              <td>
+              <td className="scoreboard-group-start">
                 <div className="item-row">
                   {items.map((id, idx) => {
                     const img = itemImage(id);
@@ -81,6 +75,12 @@ export function Scoreboard({
                   })}
                 </div>
               </td>
+              <td className="scoreboard-group-start">{p.last_hits}</td>
+              <td>{p.denies}</td>
+              <td>{p.gold_per_min}</td>
+              <td>{p.xp_per_min}</td>
+              <td className="scoreboard-group-start">{apm ?? "-"}</td>
+              <td>{p.pings ?? "-"}</td>
             </tr>
           );
         })}

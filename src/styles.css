@@ -687,6 +687,18 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
+/* Instead of free-scrolling through 12 stat columns, scrolling/swiping
+   snaps to the start of each logical group (Lvl/KDA/Net Worth, Items,
+   LH/DN/GPM/XPM, APM/Pings) - scroll-padding-left keeps a snapped group
+   from landing partly behind the sticky hero columns. */
+.scoreboard {
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 192px;
+}
+.scoreboard-group-start {
+  scroll-snap-align: start;
+}
+
 /* ============================================================
    Charts
    ============================================================ */
