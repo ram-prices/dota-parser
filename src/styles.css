@@ -794,7 +794,8 @@ tbody tr:last-child td {
 .raw-toggle {
   margin-top: 20px;
 }
-.raw-toggle button {
+.raw-toggle button,
+.pagination button {
   background: var(--md-surface-container-high);
   color: var(--text);
   border: 1px solid var(--md-outline-variant);
@@ -806,11 +807,36 @@ tbody tr:last-child td {
     background var(--duration-short) var(--motion-standard),
     transform var(--duration-short) var(--motion-spring);
 }
-.raw-toggle button:hover {
+.raw-toggle button:hover,
+.pagination button:hover:not(:disabled) {
   background: var(--md-surface-container-highest);
 }
-.raw-toggle button:active {
+.raw-toggle button:active,
+.pagination button:active:not(:disabled) {
   transform: scale(0.96);
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.pagination button {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pagination-page {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 .raw-json {
   margin-top: 10px;

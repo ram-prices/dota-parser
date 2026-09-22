@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getMatch, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
+import { getMatch, getMatchesPage, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
   averageRankTier,
@@ -19,62 +19,89 @@ import {
   type LaneOutcome,
 } from "../dota";
 
+const PAGE_SIZE = 30;
+
 export function Dashboard({ accountId }: { accountId: number }) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [wl, setWl] = useState<WinLoss | null>(null);
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageLoading, setPageLoading] = useState(false);
+  // Total match count when known (the stored index reports it) - null
+  // while it's still the live-API fallback, which doesn't report a total.
+  const [total, setTotal] = useState<number | null>(null);
   // undefined = still loading, null = loaded but no rank data available
   const [ranks, setRanks] = useState<Record<number, number | null | undefined>>({});
   const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
   const [lanes, setLanes] = useState<Record<number, LaneOutcome | null | undefined>>({});
 
-  useEffect(() => {
-    setProfile(null);
-    setWl(null);
+  // Average skill/rank, and this account's own played role, aren't in the
+  // lightweight match-list response - only the full match detail has every
+  // player's rank_tier/position_est. Fetch each one (free/instant for
+  // anything already in the data branch, a live API call otherwise) and
+  // fill both columns in as they resolve rather than blocking the table.
+  function loadDetails(forMatches: MatchSummary[]) {
+    for (const match of forMatches) {
+      getMatch(match.match_id)
+        .then((detail) => {
+          const tier = averageRankTier(detail.players.map((p) => p.rank_tier));
+          setRanks((prev) => ({ ...prev, [match.match_id]: tier }));
+
+          const self = detail.players.find((p) => p.player_slot === match.player_slot);
+          setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
+
+          setLanes((prev) => ({ ...prev, [match.match_id]: laneOutcome(detail, match.player_slot) }));
+        })
+        .catch(() => {
+          setRanks((prev) => ({ ...prev, [match.match_id]: null }));
+          setRoles((prev) => ({ ...prev, [match.match_id]: null }));
+          setLanes((prev) => ({ ...prev, [match.match_id]: null }));
+        });
+    }
+  }
+
+  function fetchPage(p: number) {
+    setPage(p);
+    setPageLoading(true);
     setMatches(null);
-    setError(null);
     setRanks({});
     setRoles({});
     setLanes({});
+    getMatchesPage(accountId, p, PAGE_SIZE)
+      .then(({ matches: m, total: t }) => {
+        setMatches(m);
+        setTotal(t);
+        loadDetails(m);
+      })
+      .catch((e) => setError(e instanceof OpenDotaError ? e.message : String(e)))
+      .finally(() => setPageLoading(false));
+  }
 
-    Promise.all([getProfile(accountId), getWinLoss(accountId), getMatches(accountId, { limit: 30 })])
-      .then(([p, w, m]) => {
+  useEffect(() => {
+    setProfile(null);
+    setWl(null);
+    setError(null);
+    setTotal(null);
+
+    Promise.all([getProfile(accountId), getWinLoss(accountId)])
+      .then(([p, w]) => {
         setProfile(p);
         setWl(w);
-        setMatches(m);
-
-        // Average skill/rank, and this account's own played role, aren't in
-        // the lightweight match-list response - only the full match detail
-        // has every player's rank_tier/position_est. Fetch each one
-        // (free/instant for anything already in the data branch, a live API
-        // call otherwise) and fill both columns in as they resolve rather
-        // than blocking the whole table on it.
-        for (const match of m) {
-          getMatch(match.match_id)
-            .then((detail) => {
-              const tier = averageRankTier(detail.players.map((p) => p.rank_tier));
-              setRanks((prev) => ({ ...prev, [match.match_id]: tier }));
-
-              const self = detail.players.find((p) => p.player_slot === match.player_slot);
-              setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
-
-              setLanes((prev) => ({ ...prev, [match.match_id]: laneOutcome(detail, match.player_slot) }));
-            })
-            .catch(() => {
-              setRanks((prev) => ({ ...prev, [match.match_id]: null }));
-              setRoles((prev) => ({ ...prev, [match.match_id]: null }));
-              setLanes((prev) => ({ ...prev, [match.match_id]: null }));
-            });
-        }
       })
       .catch((e) => setError(e instanceof OpenDotaError ? e.message : String(e)));
+
+    fetchPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
   if (error) return <div className="error-box">{error}</div>;
   if (!profile || !wl || !matches) return <div className="loading">Loading from OpenDota...</div>;
 
   const winRate = wl.win + wl.lose > 0 ? Math.round((100 * wl.win) / (wl.win + wl.lose)) : 0;
+  const totalPages = total != null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : null;
+  const hasNext = totalPages != null ? page < totalPages : matches.length === PAGE_SIZE;
+  const hasPrev = page > 1;
 
   return (
     <div>
@@ -159,6 +186,22 @@ export function Dashboard({ accountId }: { accountId: number }) {
           })}
         </tbody>
       </table>
+
+      <div className="pagination">
+        <button onClick={() => fetchPage(1)} disabled={!hasPrev || pageLoading}>
+          First
+        </button>
+        <button onClick={() => fetchPage(page - 1)} disabled={!hasPrev || pageLoading}>
+          Prev
+        </button>
+        <span className="pagination-page">{totalPages != null ? `Page ${page} of ${totalPages}` : `Page ${page}`}</span>
+        <button onClick={() => fetchPage(page + 1)} disabled={!hasNext || pageLoading}>
+          Next
+        </button>
+        <button onClick={() => totalPages != null && fetchPage(totalPages)} disabled={totalPages == null || page === totalPages || pageLoading}>
+          Last
+        </button>
+      </div>
     </div>
   );
 }
