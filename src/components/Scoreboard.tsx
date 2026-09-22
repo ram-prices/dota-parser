@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { MatchPlayer } from "../types";
-import { computeApm, heroIcon, heroName, itemImage, itemName, rankTierColor, rankTierLabel, unitDisplayName } from "../dota";
+import { computeApm, formatGameTime, heroIcon, heroName, itemImage, itemName, itemObtainedTime, rankTierColor, rankTierLabel, unitDisplayName } from "../dota";
 
 // Width of the sticky hero-icon + hero-name columns that stay pinned to
 // the left edge while the stat columns scroll - kept in sync with
@@ -24,10 +24,12 @@ function itemIdsFor(entity: { item_0: number; item_1: number; item_2: number; it
 
 // Normally just the hero's own items, but a player with a persistent
 // controllable summon that carries its own inventory (currently only
-// Lone Druid's Spirit Bear) gets its items appended in the same cell,
-// after a thin divider - rather than a whole separate row, since there's
-// no other bear-specific stat (kills/damage/etc) to justify one; OpenDota
+// Lone Druid's Spirit Bear) gets a second line stacked underneath for the
+// summon's items - rather than a whole separate row, since there's no
+// other bear-specific stat (kills/damage/etc) to justify one; OpenDota
 // folds the whole "unit complex"'s performance into the hero's own row.
+// Bear purchases are still logged under the hero's own purchase_log, so
+// the same lookup works for both lines.
 function ItemGroups({ player }: { player: MatchPlayer }) {
   const groups = [
     { key: "self", label: undefined as string | undefined, ids: itemIdsFor(player) },
@@ -40,12 +42,19 @@ function ItemGroups({ player }: { player: MatchPlayer }) {
 
   return (
     <div className="item-row">
-      {groups.map((group, i) => (
-        <div className="item-row-group" key={group.key}>
-          {i > 0 && <span className="item-row-divider" title={`${group.label} inventory`} />}
+      {groups.map((group) => (
+        <div className="item-row-group" key={group.key} title={group.label ? `${group.label} inventory` : undefined}>
           {group.ids.map((id, idx) => {
             const img = itemImage(id);
-            return img ? <img key={idx} src={img} alt={itemName(id)} title={group.label ? `${group.label}: ${itemName(id)}` : itemName(id)} className="item-icon" /> : null;
+            if (!img) return null;
+            const time = itemObtainedTime(id, player.purchase_log);
+            const title = group.label ? `${group.label}: ${itemName(id)}` : itemName(id);
+            return (
+              <span className="item-with-time" key={idx}>
+                <img src={img} alt={itemName(id)} title={title} className="item-icon" />
+                <span className="item-time">{time != null ? formatGameTime(time) : ""}</span>
+              </span>
+            );
           })}
         </div>
       ))}

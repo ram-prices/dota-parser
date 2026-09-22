@@ -624,22 +624,33 @@ tbody tr:last-child td {
 
 .item-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
-/* A player's own items are one group; a persistent summon with its own
-   inventory (Lone Druid's Spirit Bear) adds a second group right after,
-   separated by a thin divider rather than its own row - keeps the same
-   row height as every other player instead of growing the table. */
+/* A player's own items are one line; a persistent summon with its own
+   inventory (Lone Druid's Spirit Bear) adds a second line stacked below
+   it, set off by a thin top border, rather than its own row - there's no
+   other bear-specific stat (kills/damage/etc) to justify a whole row. */
 .item-row-group {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 3px;
 }
-.item-row-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--md-outline-variant);
-  margin: 0 5px;
+.item-row-group + .item-row-group {
+  padding-top: 4px;
+  border-top: 1px solid var(--md-outline-variant);
+}
+.item-with-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.item-time {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 .item-icon {
   width: 24px;

@@ -4,7 +4,7 @@ import itemsData from "./data/items.json";
 import itemsByNameData from "./data/itemsByName.json";
 import abilitiesData from "./data/abilities.json";
 import patchesData from "./data/patches.json";
-import type { MatchDetail, MatchPlayer, ObjectiveEntry } from "./types";
+import type { LogEntry, MatchDetail, MatchPlayer, ObjectiveEntry } from "./types";
 
 const CDN = "https://cdn.cloudflare.steamstatic.com";
 
@@ -72,6 +72,29 @@ export function itemByKey(key: string | undefined | null): { name: string; img: 
   const it = itemsByName[key];
   if (!it) return { name: key, img: null };
   return { name: it.name, img: it.img ? `${CDN}${it.img}` : null };
+}
+
+// Reverse of itemsByName - numeric item id -> internal shortname, so an
+// item currently sitting in an inventory slot (which only has the id) can
+// be matched back against purchase_log entries (which only have the key).
+const itemKeyById: Record<number, string> = {};
+for (const [key, entry] of Object.entries(itemsByName)) {
+  if (!(entry.id in itemKeyById)) itemKeyById[entry.id] = key;
+}
+
+// When an item currently in a slot was bought, per purchase_log. A slot's
+// item can have been bought more than once (rebuys, or built up through
+// components that share the final item's key on assembly), so this takes
+// the most recent matching purchase as the one still held.
+export function itemObtainedTime(itemId: number | undefined | null, purchaseLog: LogEntry[] | undefined): number | null {
+  if (!itemId || !purchaseLog) return null;
+  const key = itemKeyById[itemId];
+  if (!key) return null;
+  let latest: number | null = null;
+  for (const entry of purchaseLog) {
+    if (entry.key === key && (latest === null || entry.time > latest)) latest = entry.time;
+  }
+  return latest;
 }
 
 export function abilityById(id: number | undefined | null): { name: string; img: string | null } {
