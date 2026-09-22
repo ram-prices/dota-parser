@@ -110,6 +110,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                     {heroIcon(m.hero_id) && (
                       <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />
                     )}
+                    <span className="match-row-hero-name">{heroName(m.hero_id)}</span>
                     {positionShort(roles[m.match_id]) && (
                       <span className="role-badge" title={positionLabel(roles[m.match_id]) ?? undefined}>
                         {positionShort(roles[m.match_id])}

@@ -22,7 +22,7 @@ export function Scoreboard({
           <th>K</th>
           <th>D</th>
           <th>A</th>
-          <th>Net Worth</th>
+          <th>NW</th>
           <th className="scoreboard-group-start">Items</th>
           <th className="scoreboard-group-start">LH</th>
           <th>DN</th>

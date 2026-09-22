@@ -513,6 +513,7 @@ tbody tr:last-child td {
      width instead of leaving it as dead space after the last column -
      the other columns stay sized to their own content. */
   width: 100%;
+  text-align: right;
 }
 .match-row-duration-cell {
   padding-right: 12px;
@@ -522,6 +523,15 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.match-row-hero-name {
+  display: none;
+}
+@media (min-width: 720px) {
+  .match-row-hero-name {
+    display: inline;
+    font-weight: 600;
+  }
 }
 .match-row-result-cell {
   text-align: center;
