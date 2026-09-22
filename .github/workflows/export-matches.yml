@@ -1,0 +1,134 @@
+name: Export OpenDota match JSON to the data branch
+
+# Snapshots whatever OpenDota already has for each of an account's matches
+# into the `data` branch (one minified JSON file per match, sharded by the
+# last two digits of match_id - see data branch README for the layout) so
+# the dashboard - and you - own a permanent copy, independent of OpenDota's
+# API/availability going forward.
+#
+# This only ever GETs data that already exists on OpenDota (it does not
+# request new parses - see request-parse.yml / backfill-parse.yml for
+# that). Matches already exported are skipped, so this is naturally
+# resumable: just re-run it (Actions tab -> this workflow -> Run workflow)
+# to pick up wherever it left off and pull in anything new since.
+
+on:
+  workflow_dispatch:
+    inputs:
+      account_id:
+        description: "OpenDota account_id to export"
+        default: "90031862"
+      batch_size:
+        description: "How many NOT-yet-exported matches to fetch in this run"
+        default: "1500"
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+
+      - name: Export match JSON
+        env:
+          ACCOUNT_ID: ${{ github.event.inputs.account_id }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
+        run: |
+          set -uo pipefail
+
+          api_key_arg=()
+          if [ -n "$API_KEY" ]; then
+            api_key_arg=(--data-urlencode "api_key=$API_KEY")
+          fi
+
+          echo "Fetching full match list for account $ACCOUNT_ID..."
+          matches_json=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+            --data-urlencode "significant=0" \
+            --data-urlencode "limit=20000" \
+            "${api_key_arg[@]}")
+
+          total=$(echo "$matches_json" | jq 'length')
+          echo "Total matches on record: $total"
+
+          if [ -z "$total" ] || [ "$total" = "0" ] || [ "$total" = "null" ]; then
+            echo "No matches returned - check the account_id."
+            exit 0
+          fi
+
+          # Newest first, so a partial/interrupted run still covers your
+          # most-likely-to-be-viewed matches before older ones.
+          mapfile -t all_ids < <(echo "$matches_json" | jq -r 'sort_by(.match_id) | reverse | .[].match_id')
+
+          already=0
+          fetched=0
+          rate_limited=false
+
+          for id in "${all_ids[@]}"; do
+            shard="${id: -2}"
+            dir="matches/$shard"
+            file="$dir/$id.json"
+
+            if [ -f "$file" ]; then
+              already=$((already + 1))
+              continue
+            fi
+
+            if [ "$fetched" -ge "$BATCH_SIZE" ]; then
+              break
+            fi
+
+            status=$(curl -sS -G -o /tmp/match.json -w "%{http_code}" "https://api.opendota.com/api/matches/$id" "${api_key_arg[@]}")
+            if [ "$status" = "429" ]; then
+              echo "Hit the rate limit at match $id - stopping this run early."
+              rate_limited=true
+              break
+            fi
+            if [ "$status" != "200" ]; then
+              echo "  match $id: HTTP $status, skipping"
+              sleep 1.2
+              continue
+            fi
+
+            mkdir -p "$dir"
+            jq -c '.' /tmp/match.json > "$file"
+            fetched=$((fetched + 1))
+
+            if (( fetched % 50 == 0 )); then
+              echo "  ...$fetched fetched this run (already had $already, latest: $id)"
+            fi
+            sleep 1.2
+          done
+
+          echo "Already had $already matches. Fetched $fetched new ones this run."
+
+          remaining=$(( total - already - fetched ))
+          {
+            echo "### Export run summary"
+            echo "- Already exported: $already"
+            echo "- Fetched this run: $fetched"
+            echo "- Remaining: $remaining of $total"
+            if [ "$rate_limited" = "true" ]; then
+              echo "- Stopped early: hit OpenDota's rate limit. Re-run to continue."
+            elif [ "$remaining" -gt 0 ]; then
+              echo "- Re-run this workflow to continue."
+            else
+              echo "- All matches exported!"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit exported files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add matches
+          if ! git diff --cached --quiet; then
+            git commit -m "Export match JSON [skip ci]"
+            git push
+          else
+            echo "No new files to commit."
+          fi

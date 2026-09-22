@@ -14,16 +14,26 @@ to build or run yourself.
 ## How it works
 
 ```
- your browser ──▶ api.opendota.com ──▶ response cached in localStorage
+                    ┌─▶ data branch (our own exported copy) ─┐
+ your browser ──────┤                                        ├──▶ cached in localStorage
+                    └─▶ api.opendota.com (fallback) ─────────┘
 ```
 
 - You enter your Steam account once (Settings page); it's saved in your
-  browser's `localStorage`.
-- Every page fetches directly from `https://api.opendota.com/api/...`.
-- Match details (`/matches/{id}`) never change once parsed, so they're
-  cached in `localStorage` forever — you'll never re-spend an API call on
-  a match you've already opened. Lists (recent matches, hero stats,
-  teammates) refresh every 5 minutes.
+  browser's `localStorage`. (The deployed site already defaults to
+  `90031862` - see **Deploying** - so this step isn't needed there.)
+- For match details, every page checks this repo's own `data` branch
+  first — a permanent, git-hosted copy of whatever OpenDota returned for
+  each match at export time (see **Owning your match data** below) — and
+  only falls back to `https://api.opendota.com/api/...` live for a match
+  that hasn't been exported yet. Everything else (profile, match lists,
+  hero/teammate stats) always calls OpenDota directly, since those change
+  as you keep playing.
+- Match details never change once parsed, so on top of the data-branch
+  copy, whichever source answered also gets cached in `localStorage`
+  forever — you'll never re-fetch the same match twice from the same
+  browser. Lists (recent matches, hero stats, teammates) refresh every 5
+  minutes.
 
 Because there's no backend, "running" this just means opening the page —
 locally with `npm run dev`, or as an actual deployed website (see
@@ -111,6 +121,29 @@ Two things worth knowing:
   repo activity. For an actively-used personal project that's unlikely to
   matter, but if matches stop getting auto-parsed after a long break, check
   the Actions tab and re-enable it.
+
+## Owning your match data
+
+`.github/workflows/export-matches.yml` copies whatever OpenDota currently
+has for each of an account's matches into this repo's `data` branch — one
+minified JSON file per match (see that branch's own README for the exact
+layout). The dashboard reads from there first, falling back to OpenDota's
+live API only for a match that hasn't been exported yet (see **How it
+works** above).
+
+Why this exists: it's a permanent copy independent of OpenDota's future
+availability, rate limits, or API changes — and unlike the `localStorage`
+cache, it's shared across every device/browser, not just the one that
+happened to view a match first.
+
+This only exports data OpenDota *already has* — it doesn't request new
+parses (that's `request-parse.yml`, above) and can't recover a match
+nobody ever parsed while its replay was still available. At large match
+counts (thousands+), one run won't cover everything under OpenDota's free
+rate limit; it skips matches already exported, so it's safe to just
+re-run it (Actions tab → "Export OpenDota match JSON to the data branch" →
+Run workflow) on subsequent days until the step summary says everything's
+exported.
 
 ## Rate limits
 

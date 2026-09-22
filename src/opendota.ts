@@ -4,6 +4,25 @@ import type { HeroStat, MatchDetail, MatchSummary, PeerStat, PlayerProfile, WinL
 
 const BASE = "https://api.opendota.com/api";
 
+// Match JSON exported to the `data` branch (see .github/workflows/export-matches.yml
+// and the data branch's own README) - a permanent copy of whatever OpenDota
+// had at export time, sharded by the last two digits of match_id.
+const DATA_BRANCH_MATCHES = "https://raw.githubusercontent.com/ram-prices/dota-parser/data/matches";
+
+function shardFor(matchId: number): string {
+  return String(matchId).slice(-2);
+}
+
+async function getStoredMatch(matchId: number): Promise<MatchDetail | null> {
+  try {
+    const res = await fetch(`${DATA_BRANCH_MATCHES}/${shardFor(matchId)}/${matchId}.json`);
+    if (!res.ok) return null; // 404 (not exported yet) or any hiccup - fall back to the live API
+    return (await res.json()) as MatchDetail;
+  } catch {
+    return null;
+  }
+}
+
 export class OpenDotaError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -62,9 +81,16 @@ export function getPeers(accountId: number): Promise<PeerStat[]> {
 }
 
 // A match's parsed data never changes once OpenDota has parsed it, so this
-// is cached forever (until the user explicitly clears the cache).
+// is cached forever (until the user explicitly clears the cache). Checks
+// our own exported copy on the `data` branch first - shared across every
+// device/browser, unlike the localStorage cache below - before falling
+// back to OpenDota's live API for anything not exported yet.
 export function getMatch(matchId: number): Promise<MatchDetail> {
-  return cachedForever(`match:${matchId}`, () => get<MatchDetail>(`/matches/${matchId}`));
+  return cachedForever(`match:${matchId}`, async () => {
+    const stored = await getStoredMatch(matchId);
+    if (stored) return stored;
+    return get<MatchDetail>(`/matches/${matchId}`);
+  });
 }
 
 // Asks OpenDota to (re-)parse a match's replay. Only works while Valve
