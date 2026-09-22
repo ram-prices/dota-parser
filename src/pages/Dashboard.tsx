@@ -10,8 +10,11 @@ import {
   heroIcon,
   heroName,
   isRadiant,
+  laneOutcome,
+  laneOutcomeLabel,
   positionLabel,
   positionShort,
+  type LaneOutcome,
 } from "../dota";
 
 export function Dashboard({ accountId }: { accountId: number }) {
@@ -22,6 +25,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // undefined = still loading, null = loaded but no rank data available
   const [ranks, setRanks] = useState<Record<number, string | null | undefined>>({});
   const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
+  const [lanes, setLanes] = useState<Record<number, LaneOutcome | null | undefined>>({});
 
   useEffect(() => {
     setProfile(null);
@@ -30,6 +34,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     setError(null);
     setRanks({});
     setRoles({});
+    setLanes({});
 
     Promise.all([getProfile(accountId), getWinLoss(accountId), getMatches(accountId, { limit: 30 })])
       .then(([p, w, m]) => {
@@ -51,10 +56,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
 
               const self = detail.players.find((p) => p.player_slot === match.player_slot);
               setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
+
+              setLanes((prev) => ({ ...prev, [match.match_id]: laneOutcome(detail, match.player_slot) }));
             })
             .catch(() => {
               setRanks((prev) => ({ ...prev, [match.match_id]: null }));
               setRoles((prev) => ({ ...prev, [match.match_id]: null }));
+              setLanes((prev) => ({ ...prev, [match.match_id]: null }));
             });
         }
       })
@@ -96,16 +104,24 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   </span>
                 )}
               </span>
-              <span className="match-row-result">{won ? "W" : "L"}</span>
+              <span className="match-row-result">
+                <span className="result-badge">{won ? "W" : "L"}</span>
+                {lanes[m.match_id] && (
+                  <span
+                    className={`lane-dot lane-${lanes[m.match_id]}`}
+                    title={laneOutcomeLabel(lanes[m.match_id]) ?? undefined}
+                  />
+                )}
+              </span>
               <span className="match-row-stat match-row-kda">
                 {m.kills} / {m.deaths} / {m.assists}
               </span>
               <span className="match-row-stat match-row-stacked match-row-mode">
                 <span>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</span>
                 <span className="text-dim small">{gameModeName(m.game_mode)}</span>
-              </span>
-              <span className="match-row-stat text-dim match-row-rank">
-                {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                <span className="text-dim small">
+                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                </span>
               </span>
               <span className="match-row-stat match-row-stacked match-row-duration">
                 <span>{formatDuration(m.duration)}</span>

@@ -111,6 +111,7 @@ export interface MatchPlayer {
   ability_upgrades_arr?: number[];
   gold_t?: number[];
   xp_t?: number[];
+  networth_t?: number[];
   lh_t?: number[];
   dn_t?: number[];
   purchase_log?: LogEntry[];

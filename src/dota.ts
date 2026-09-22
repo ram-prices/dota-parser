@@ -3,6 +3,7 @@ import heroesByNameData from "./data/heroesByName.json";
 import itemsData from "./data/items.json";
 import itemsByNameData from "./data/itemsByName.json";
 import abilitiesData from "./data/abilities.json";
+import type { MatchDetail, MatchPlayer, ObjectiveEntry } from "./types";
 
 const CDN = "https://cdn.cloudflare.steamstatic.com";
 
@@ -206,6 +207,94 @@ export function averageRankLabel(tiers: Array<number | null | undefined>): strin
   const medal = Math.floor(avgScore / 5) + 1;
   const star = (avgScore % 5) + 1;
   return rankTierLabel(medal * 10 + star);
+}
+
+// Lane outcome - OpenDota has no direct "did you win your lane" field, only
+// each player's lane_efficiency (a farm-vs-optimal-farm ratio, not a
+// win/loss). Derived instead from each player's actual lane group (by
+// lane_role, not assumed position) vs. the mirrored enemy group's combined
+// net worth + XP at the 10 minute mark, with an early lane tower counted as
+// a decisive, more concrete signal than a close gold/XP lead.
+export type LaneOutcome = "won" | "draw" | "lost";
+
+const LANE_CUTOFF_MINUTE = 10;
+const LANE_WIN_MARGIN = 0.15; // >15% combined net worth + XP lead to call it decisively
+
+// Radiant's safe lane is the bottom lane, Dire's safe lane is the top lane
+// (they mirror across the map) - mid is mid for both sides.
+function physicalLane(radiant: boolean, laneRole: number): "top" | "mid" | "bot" | null {
+  if (laneRole === 2) return "mid";
+  if (laneRole === 1) return radiant ? "bot" : "top";
+  if (laneRole === 3) return radiant ? "top" : "bot";
+  return null;
+}
+
+// A lane_role's actual opponent: Radiant Safe (1) faces Dire Off (3) since
+// they share the bottom lane, and vice versa; Mid (2) faces Mid.
+const MIRROR_LANE_ROLE: Record<number, number> = { 1: 3, 2: 2, 3: 1 };
+
+function laneValueAt(player: MatchPlayer, minute: number): number {
+  const networth = player.networth_t;
+  const xp = player.xp_t;
+  const nw = networth && networth.length > 0 ? networth[Math.min(minute, networth.length - 1)] : 0;
+  const x = xp && xp.length > 0 ? xp[Math.min(minute, xp.length - 1)] : 0;
+  return nw + x;
+}
+
+// Earliest tower in this physical lane destroyed before the cutoff, if any -
+// whoever DIDN'T own that tower pushed it down, so they're the beneficiary.
+function earlyLaneTowerBeneficiary(
+  objectives: ObjectiveEntry[] | undefined,
+  lane: "top" | "mid" | "bot",
+): "radiant" | "dire" | null {
+  if (!objectives) return null;
+  const cutoffSeconds = LANE_CUTOFF_MINUTE * 60;
+  let earliest: { time: number; ownerTeam: "radiant" | "dire" } | null = null;
+  for (const o of objectives) {
+    if (o.type !== "building_kill" || !o.key || o.time > cutoffSeconds) continue;
+    if (!o.key.includes("tower") || !o.key.endsWith(`_${lane}`)) continue;
+    const ownerTeam = o.key.includes("goodguys") ? "radiant" : o.key.includes("badguys") ? "dire" : null;
+    if (!ownerTeam) continue;
+    if (!earliest || o.time < earliest.time) earliest = { time: o.time, ownerTeam };
+  }
+  if (!earliest) return null;
+  return earliest.ownerTeam === "radiant" ? "dire" : "radiant";
+}
+
+export function laneOutcome(detail: MatchDetail, playerSlot: number): LaneOutcome | null {
+  const me = detail.players.find((p) => p.player_slot === playerSlot);
+  if (!me || !me.lane_role) return null;
+
+  const myRadiant = isRadiant(playerSlot);
+  const lane = physicalLane(myRadiant, me.lane_role);
+  const enemyLaneRole = MIRROR_LANE_ROLE[me.lane_role];
+  if (!lane || !enemyLaneRole) return null;
+
+  const myGroup = detail.players.filter((p) => isRadiant(p.player_slot) === myRadiant && p.lane_role === me.lane_role);
+  const enemyGroup = detail.players.filter((p) => isRadiant(p.player_slot) !== myRadiant && p.lane_role === enemyLaneRole);
+  if (myGroup.length === 0 || enemyGroup.length === 0) return null;
+
+  const myScore = myGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
+  const enemyScore = enemyGroup.reduce((sum, p) => sum + laneValueAt(p, LANE_CUTOFF_MINUTE), 0);
+
+  let result: LaneOutcome;
+  if (myScore > enemyScore * (1 + LANE_WIN_MARGIN)) result = "won";
+  else if (enemyScore > myScore * (1 + LANE_WIN_MARGIN)) result = "lost";
+  else result = "draw";
+
+  if (result === "draw") {
+    const beneficiary = earlyLaneTowerBeneficiary(detail.objectives, lane);
+    if (beneficiary) result = beneficiary === (myRadiant ? "radiant" : "dire") ? "won" : "lost";
+  }
+
+  return result;
+}
+
+export function laneOutcomeLabel(outcome: LaneOutcome | null | undefined): string | null {
+  if (outcome === "won") return "Won lane";
+  if (outcome === "lost") return "Lost lane";
+  if (outcome === "draw") return "Even lane";
+  return null;
 }
 
 const OBJECTIVE_LABELS: Record<string, string> = {

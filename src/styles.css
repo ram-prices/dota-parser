@@ -492,8 +492,8 @@ tbody tr:last-child td {
   display: grid;
   grid-template-columns: 70px 30px 1fr auto;
   grid-template-areas:
-    "hero result kda  rank"
-    "hero result mode dur";
+    "hero result kda  dur"
+    "hero result mode mode";
   align-items: center;
   column-gap: 10px;
   row-gap: 3px;
@@ -506,9 +506,15 @@ tbody tr:last-child td {
 }
 @media (min-width: 641px) {
   .match-row {
-    grid-template-columns: 70px 30px 90px minmax(120px, 1fr) 90px 130px;
-    grid-template-areas: "hero result kda mode rank dur";
-    column-gap: 18px;
+    /* No 1fr tracks here on purpose: every column sizes to its own
+       content (auto), and justify-content spreads whatever space is left
+       evenly across the gaps instead of dumping it all into one column,
+       which is what happened when "mode" was a 1fr track with short
+       left-aligned text in it. */
+    grid-template-columns: 70px 30px 90px auto 100px;
+    grid-template-areas: "hero result kda mode dur";
+    column-gap: 22px;
+    justify-content: space-between;
   }
 }
 .match-row:last-child {
@@ -532,6 +538,12 @@ tbody tr:last-child td {
 }
 .match-row-result {
   grid-area: result;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.result-badge {
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -541,13 +553,28 @@ tbody tr:last-child td {
   font-weight: 800;
   font-size: 13px;
 }
-.match-row.row-win .match-row-result {
+.match-row.row-win .result-badge {
   color: var(--radiant);
   background: color-mix(in srgb, var(--radiant) 16%, transparent);
 }
-.match-row.row-loss .match-row-result {
+.match-row.row-loss .result-badge {
   color: var(--dire);
   background: color-mix(in srgb, var(--dire) 16%, transparent);
+}
+.lane-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--shape-full);
+  flex-shrink: 0;
+}
+.lane-dot.lane-won {
+  background: var(--radiant);
+}
+.lane-dot.lane-lost {
+  background: var(--dire);
+}
+.lane-dot.lane-draw {
+  background: var(--text-dim);
 }
 .match-row-stat {
   font-size: 13px;
@@ -563,10 +590,6 @@ tbody tr:last-child td {
 }
 .match-row-mode {
   grid-area: mode;
-}
-.match-row-rank {
-  grid-area: rank;
-  justify-self: end;
 }
 .match-row-duration {
   grid-area: dur;
