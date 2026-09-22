@@ -1,0 +1,138 @@
+name: Backfill OpenDota parses (full history)
+
+# One-time (well, one-time-per-batch) sweep through an account's ENTIRE
+# match history requesting a parse for every match, not just the recent
+# ones request-parse.yml covers. At 6000+ matches this can't fit under
+# OpenDota's free rate limit (2,000 calls/day) in a single run, so progress
+# is tracked in .github/backfill-state.json and committed back to the repo
+# after each run - just re-run this workflow (Actions tab -> this workflow
+# -> Run workflow) on subsequent days to keep going from where it left off.
+#
+# This only asks OpenDota to parse - it can't recover a match whose replay
+# already expired off Valve's CDN (~8-14 days post-match) before anyone
+# requested a parse. Those are gone regardless of how this is run.
+#
+# Requires this repo's Settings -> Actions -> General -> Workflow
+# permissions to allow "Read and write permissions" so it can commit the
+# progress file back.
+
+on:
+  workflow_dispatch:
+    inputs:
+      account_id:
+        description: "OpenDota account_id to backfill"
+        default: "90031862"
+      batch_size:
+        description: "How many matches to request-parse in this run (leave headroom under the daily rate limit)"
+        default: "1500"
+      reset:
+        description: "Start over from the beginning instead of resuming"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Request parses for the next batch
+        id: run
+        env:
+          ACCOUNT_ID: ${{ github.event.inputs.account_id }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          RESET: ${{ github.event.inputs.reset }}
+          API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
+        run: |
+          set -uo pipefail
+          STATE_FILE=".github/backfill-state.json"
+
+          api_key_arg=()
+          if [ -n "$API_KEY" ]; then
+            api_key_arg=(--data-urlencode "api_key=$API_KEY")
+          fi
+
+          if [ "$RESET" = "true" ] || [ ! -f "$STATE_FILE" ]; then
+            offset=0
+          else
+            offset=$(jq -r '.offset // 0' "$STATE_FILE")
+          fi
+
+          echo "Fetching full match list for account $ACCOUNT_ID..."
+          matches_json=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+            --data-urlencode "significant=0" \
+            --data-urlencode "limit=20000" \
+            "${api_key_arg[@]}")
+
+          total=$(echo "$matches_json" | jq 'length')
+          echo "Total matches on record: $total"
+
+          if [ -z "$total" ] || [ "$total" = "0" ] || [ "$total" = "null" ]; then
+            echo "No matches returned - check the account_id. Leaving state untouched."
+            exit 0
+          fi
+
+          mapfile -t all_ids < <(echo "$matches_json" | jq -r 'sort_by(.match_id) | .[].match_id')
+
+          start=$offset
+          end=$(( offset + BATCH_SIZE ))
+          if [ "$end" -gt "$total" ]; then end=$total; fi
+
+          if [ "$start" -ge "$total" ]; then
+            echo "Already at offset $start of $total - nothing left to do. Backfill is complete."
+            exit 0
+          fi
+
+          echo "Processing matches $start..$((end - 1)) of $total"
+
+          processed=0
+          rate_limited=false
+          for (( i=start; i<end; i++ )); do
+            id="${all_ids[$i]}"
+            status=$(curl -sS -G -o /dev/null -w "%{http_code}" -X POST "https://api.opendota.com/api/request/$id" "${api_key_arg[@]}")
+            if [ "$status" = "429" ]; then
+              echo "Hit the rate limit at match $id (index $i) - stopping this run early."
+              rate_limited=true
+              break
+            fi
+            processed=$((processed + 1))
+            if (( (i - start) % 50 == 0 )); then
+              echo "  ...$((i - start + 1))/$((end - start)) requested this run (match $id, HTTP $status)"
+            fi
+            sleep 1.2
+          done
+
+          new_offset=$(( start + processed ))
+          echo "Requested parses for $processed matches this run. New offset: $new_offset / $total"
+
+          cat > "$STATE_FILE" <<JSON
+          {
+            "account_id": $ACCOUNT_ID,
+            "total_matches": $total,
+            "offset": $new_offset,
+            "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "rate_limited_this_run": $rate_limited
+          }
+          JSON
+
+          if [ "$new_offset" -ge "$total" ]; then
+            echo "### Backfill complete! All $total matches have had a parse requested at least once." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### $(( total - new_offset )) of $total matches remaining." >> "$GITHUB_STEP_SUMMARY"
+            echo "Re-run this workflow to continue - it resumes automatically from offset $new_offset." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Commit progress
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/backfill-state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Backfill progress update [skip ci]"
+            git push
+          else
+            echo "No state change to commit."
+          fi
