@@ -6,6 +6,70 @@ import type { MatchDetail as MatchDetailType } from "../types";
 import { abilityById, formatDuration, formatGameTime, gameModeName, heroIcon, heroName, heroNameByUnit, isRadiant, itemByKey } from "../dota";
 import { Scoreboard } from "../components/Scoreboard";
 import { AdvantageChart } from "../components/AdvantageChart";
+import { RemainingFields } from "../components/PrettyValue";
+
+// Fields already given a dedicated view elsewhere on this page - everything
+// else on a player/match object gets dumped generically so nothing from
+// OpenDota's response is hidden, even before it has a purpose-built view.
+const SHOWN_PLAYER_FIELDS = new Set([
+  "account_id",
+  "player_slot",
+  "hero_id",
+  "personaname",
+  "isRadiant",
+  "win",
+  "kills",
+  "deaths",
+  "assists",
+  "last_hits",
+  "denies",
+  "gold_per_min",
+  "xp_per_min",
+  "level",
+  "net_worth",
+  "hero_damage",
+  "tower_damage",
+  "hero_healing",
+  "item_0",
+  "item_1",
+  "item_2",
+  "item_3",
+  "item_4",
+  "item_5",
+  "backpack_0",
+  "backpack_1",
+  "backpack_2",
+  "item_neutral",
+  "aghanims_scepter",
+  "aghanims_shard",
+  "ability_upgrades_arr",
+  "gold_t",
+  "xp_t",
+  "lh_t",
+  "purchase_log",
+  "kills_log",
+  "runes_log",
+  "buyback_log",
+  "obs_log",
+  "sen_log",
+  "pings",
+  "actions",
+]);
+
+const SHOWN_MATCH_FIELDS = new Set([
+  "match_id",
+  "duration",
+  "start_time",
+  "radiant_win",
+  "game_mode",
+  "lobby_type",
+  "radiant_score",
+  "dire_score",
+  "radiant_gold_adv",
+  "radiant_xp_adv",
+  "chat",
+  "players",
+]);
 
 export function MatchDetail() {
   const { matchId } = useParams();
@@ -108,8 +172,8 @@ export function MatchDetail() {
         )}
       </div>
 
-      <Scoreboard players={radiant} teamLabel="Radiant" className="team-radiant" />
-      <Scoreboard players={dire} teamLabel="Dire" className="team-dire" />
+      <Scoreboard players={radiant} teamLabel="Radiant" className="team-radiant" duration={data.duration} />
+      <Scoreboard players={dire} teamLabel="Dire" className="team-dire" duration={data.duration} />
 
       {data.radiant_gold_adv && <AdvantageChart title="Gold advantage" values={data.radiant_gold_adv} />}
       {data.radiant_xp_adv && <AdvantageChart title="Experience advantage" values={data.radiant_xp_adv} />}
@@ -249,6 +313,26 @@ export function MatchDetail() {
           </table>
         </details>
       )}
+
+      <details className="section" open={false}>
+        <summary>Everything else OpenDota returned</summary>
+        <p className="text-dim small">
+          Every field from this match's JSON that isn't already shown above, in raw form - things like damage
+          breakdowns, teamfights, objectives, benchmarks, and more. Unorganized for now; ask to have any of these
+          turned into a proper view.
+        </p>
+
+        <h4>Match-level</h4>
+        <RemainingFields obj={data} exclude={SHOWN_MATCH_FIELDS} />
+
+        <h4>Per player</h4>
+        {data.players.map((p) => (
+          <details key={p.player_slot} className="section">
+            <summary>{heroName(p.hero_id)}</summary>
+            <RemainingFields obj={p as unknown as Record<string, unknown>} exclude={SHOWN_PLAYER_FIELDS} />
+          </details>
+        ))}
+      </details>
 
       <div className="raw-toggle">
         <button onClick={() => setShowRaw((v) => !v)}>{showRaw ? "Hide" : "Show"} raw OpenDota match data</button>

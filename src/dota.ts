@@ -64,6 +64,14 @@ export function isRadiant(playerSlot: number): boolean {
   return playerSlot < 128;
 }
 
+// actions is a per-action-type count (clicks/orders); APM is just the total
+// rate of those over the game, same definition OpenDota's own site uses.
+export function computeApm(actions: Record<string, number> | undefined, durationSeconds: number): number | null {
+  if (!actions || durationSeconds <= 0) return null;
+  const total = Object.values(actions).reduce((sum, n) => sum + n, 0);
+  return Math.round(total / (durationSeconds / 60));
+}
+
 export function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.abs(seconds % 60);

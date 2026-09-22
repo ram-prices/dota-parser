@@ -1,7 +1,17 @@
 import type { MatchPlayer } from "../types";
-import { heroIcon, heroName, itemImage, itemName } from "../dota";
+import { computeApm, heroIcon, heroName, itemImage, itemName } from "../dota";
 
-export function Scoreboard({ players, teamLabel, className }: { players: MatchPlayer[]; teamLabel: string; className: string }) {
+export function Scoreboard({
+  players,
+  teamLabel,
+  className,
+  duration,
+}: {
+  players: MatchPlayer[];
+  teamLabel: string;
+  className: string;
+  duration: number;
+}) {
   return (
     <table className={`scoreboard ${className}`}>
       <thead>
@@ -15,6 +25,8 @@ export function Scoreboard({ players, teamLabel, className }: { players: MatchPl
           <th>DN</th>
           <th>GPM</th>
           <th>XPM</th>
+          <th>APM</th>
+          <th>Pings</th>
           <th>Net Worth</th>
           <th>Items</th>
         </tr>
@@ -24,6 +36,7 @@ export function Scoreboard({ players, teamLabel, className }: { players: MatchPl
           const items = [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5, p.item_neutral].filter(
             (id) => id,
           );
+          const apm = computeApm(p.actions, duration);
           return (
             <tr key={p.player_slot}>
               <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
@@ -39,6 +52,8 @@ export function Scoreboard({ players, teamLabel, className }: { players: MatchPl
               <td>{p.denies}</td>
               <td>{p.gold_per_min}</td>
               <td>{p.xp_per_min}</td>
+              <td>{apm ?? "-"}</td>
+              <td>{p.pings ?? "-"}</td>
               <td>{p.net_worth ?? "-"}</td>
               <td>
                 <div className="item-row">

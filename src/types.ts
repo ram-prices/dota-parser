@@ -115,6 +115,9 @@ export interface MatchPlayer {
   buyback_log?: LogEntry[];
   obs_log?: LogEntry[];
   sen_log?: LogEntry[];
+  pings?: number;
+  actions?: Record<string, number>;
+  stuns?: number;
 }
 
 export interface MatchDetail {
