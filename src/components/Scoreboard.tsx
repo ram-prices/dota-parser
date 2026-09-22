@@ -42,9 +42,9 @@ export function Scoreboard({
             <tr key={p.player_slot}>
               <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
               <td className="hero-name-cell">
-                {heroName(p.hero_id)}
+                <div title={heroName(p.hero_id)}>{heroName(p.hero_id)}</div>
                 {p.personaname && (
-                  <div className="text-dim small">
+                  <div className="text-dim small" title={p.personaname}>
                     {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
                     {p.rank_tier ? ` · ${rankTierLabel(p.rank_tier)}` : ""}
                   </div>

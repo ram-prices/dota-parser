@@ -508,6 +508,19 @@ tbody tr:last-child td {
   left: 42px;
   padding-left: 6px;
   box-shadow: 6px 0 8px -6px rgba(0, 0, 0, 0.5);
+  /* Pinned for the same reason as the icon column: hero/player names
+     vary in length, so an auto width means the Radiant and Dire tables
+     break into their scrolling columns at different points and don't
+     line up. Long names truncate with an ellipsis (full text on hover/
+     long-press via the title attribute) rather than growing the column. */
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+}
+.scoreboard tbody .hero-name-cell > div {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ============================================================
