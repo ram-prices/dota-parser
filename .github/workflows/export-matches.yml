@@ -71,10 +71,23 @@ jobs:
           fi
 
           echo "Fetching full match list for account $ACCOUNT_ID..."
-          matches_json=$(curl -sS -G --connect-timeout 10 --max-time 60 "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
-            --data-urlencode "significant=0" \
-            --data-urlencode "limit=20000" \
-            "${api_key_arg[@]}")
+          # GitHub Actions runs this script with `bash -e`, so a single
+          # timed-out request here (OpenDota being briefly slow - this
+          # endpoint returns the whole match history in one call, no
+          # retries needed for anything else in this script) would abort
+          # the entire run before anything's even been fetched. Retry a
+          # few times rather than needing a human to notice and re-trigger.
+          matches_json=""
+          for attempt in 1 2 3; do
+            if matches_json=$(curl -sS -G --connect-timeout 10 --max-time 60 "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+              --data-urlencode "significant=0" \
+              --data-urlencode "limit=20000" \
+              "${api_key_arg[@]}"); then
+              break
+            fi
+            echo "Match list fetch failed (attempt $attempt/3), retrying in 10s..."
+            sleep 10
+          done
 
           total=$(echo "$matches_json" | jq 'length')
           echo "Total matches on record: $total"

@@ -968,23 +968,38 @@ tbody tr:last-child td {
 .text-dire {
   color: var(--dire);
 }
-.lane-h2h th {
-  text-align: center;
-  font-size: 10px;
+.lane-h2h-team {
+  margin-bottom: 12px;
 }
-.lane-h2h th.lane-h2h-hero-col {
+.lane-h2h-team:last-child {
+  margin-bottom: 0;
+}
+.lane-h2h-team-label {
   font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
 }
-.lane-h2h td.lane-h2h-stat {
-  text-align: center;
+.lane-h2h-card {
+  background: var(--md-surface-container-high);
+  border-radius: var(--shape-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
 }
-.lane-h2h-hero {
-  min-width: 150px;
+.lane-h2h-card:last-child {
+  margin-bottom: 0;
 }
-.lane-h2h-divider-col {
-  width: 1px;
-  padding: 0 !important;
-  background: var(--md-outline-variant);
+.lane-h2h-stats {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lane-h2h-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
 }
 .lane-compare {
   margin-top: 14px;

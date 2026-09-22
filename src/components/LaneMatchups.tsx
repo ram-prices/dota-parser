@@ -19,66 +19,54 @@ function statAt10(player: MatchPlayer | undefined, field: "networth_t" | "xp_t" 
   return null;
 }
 
-function StatCell({ value }: { value: number | null }) {
-  return <td className="lane-h2h-stat">{value != null ? value.toLocaleString() : "-"}</td>;
-}
+const STAT_LABELS: Record<"networth_t" | "xp_t" | "lh_t" | "dn_t", string> = {
+  networth_t: "Net worth",
+  xp_t: "Experience",
+  lh_t: "Last hits",
+  dn_t: "Denies",
+};
 
-function HeroCell({ player }: { player: MatchPlayer | undefined }) {
-  if (!player) return <td className="lane-h2h-hero" />;
+// Every stat on its own line - no column width to run out of, so this
+// never needs horizontal scrolling at any screen size.
+function PlayerStatCard({ player }: { player: MatchPlayer }) {
   return (
-    <td className="lane-h2h-hero">
+    <div className="lane-h2h-card">
       <div className="hero-cell">
         {heroIcon(player.hero_id) && <img src={heroIcon(player.hero_id)!} alt="" className="hero-icon" />}
         {heroName(player.hero_id)}
       </div>
-    </td>
+      <div className="lane-h2h-stats">
+        {(["networth_t", "xp_t", "lh_t", "dn_t"] as const).map((field) => (
+          <div className="lane-h2h-stat" key={field}>
+            <span className="text-dim">{STAT_LABELS[field]}</span>
+            <span>{statAt10(player, field)?.toLocaleString() ?? "-"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// One row per lane "slot" - Radiant's stats read outward-in from the left,
-// Dire's mirror them reading outward-in from the right, so both sides'
-// numbers sit next to the shared divider for an easy side-by-side compare.
 function LaneHeadToHead({ radiantPlayers, direPlayers }: { radiantPlayers: MatchPlayer[]; direPlayers: MatchPlayer[] }) {
-  const rows = Math.max(radiantPlayers.length, direPlayers.length);
   return (
-    <table className="lane-h2h">
-      <thead>
-        <tr>
-          <th className="lane-h2h-hero-col text-radiant">Radiant</th>
-          <th>NW</th>
-          <th>XP</th>
-          <th>LH</th>
-          <th>DN</th>
-          <th className="lane-h2h-divider-col" aria-hidden="true" />
-          <th>DN</th>
-          <th>LH</th>
-          <th>XP</th>
-          <th>NW</th>
-          <th className="lane-h2h-hero-col text-dire">Dire</th>
-        </tr>
-      </thead>
-      <tbody>
-        {Array.from({ length: rows }, (_, i) => {
-          const r = radiantPlayers[i];
-          const d = direPlayers[i];
-          return (
-            <tr key={i}>
-              <HeroCell player={r} />
-              <StatCell value={statAt10(r, "networth_t")} />
-              <StatCell value={statAt10(r, "xp_t")} />
-              <StatCell value={statAt10(r, "lh_t")} />
-              <StatCell value={statAt10(r, "dn_t")} />
-              <td className="lane-h2h-divider-col" aria-hidden="true" />
-              <StatCell value={statAt10(d, "dn_t")} />
-              <StatCell value={statAt10(d, "lh_t")} />
-              <StatCell value={statAt10(d, "xp_t")} />
-              <StatCell value={statAt10(d, "networth_t")} />
-              <HeroCell player={d} />
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div className="lane-h2h">
+      {radiantPlayers.length > 0 && (
+        <div className="lane-h2h-team">
+          <div className="lane-h2h-team-label text-radiant">Radiant</div>
+          {radiantPlayers.map((p) => (
+            <PlayerStatCard key={p.player_slot} player={p} />
+          ))}
+        </div>
+      )}
+      {direPlayers.length > 0 && (
+        <div className="lane-h2h-team">
+          <div className="lane-h2h-team-label text-dire">Dire</div>
+          {direPlayers.map((p) => (
+            <PlayerStatCard key={p.player_slot} player={p} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
