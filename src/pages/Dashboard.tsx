@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { getMatch, getMatchExtrasIndex, getMatchIndexForStats, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchExtras, MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
-  averageRankTier,
   effectiveGameModeKey,
   formatDuration,
   formatRelativeTime,
@@ -16,16 +15,24 @@ import {
   laneOutcomeLabel,
   matchGameModeLabel,
   matchLobbyLabel,
+  matchRankTier,
   patchLabel,
   positionLabel,
   positionShort,
   rankTierColor,
   rankTierLabel,
+  skillBracketLabel,
   type GameModeKey,
   type LaneOutcome,
 } from "../dota";
 
 const PAGE_SIZE = 30;
+
+// A match's rank column: the average rank tier when there are enough
+// ranked players to average, otherwise Valve's own skill bracket label -
+// see matchRankTier()/skillBracketLabel() in dota.ts. null means neither
+// was available for that match.
+type RankBadge = { label: string; color: string | null } | null;
 
 type ResultFilter = "all" | "win" | "loss";
 type FactionFilter = "all" | "radiant" | "dire";
@@ -125,8 +132,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [enemyHeroFilter, setEnemyHeroFilter] = useState(initialEnemyHero);
   const [patchFilter, setPatchFilter] = useState(initialPatch);
 
-  // undefined = still loading, null = loaded but no rank data available
-  const [ranks, setRanks] = useState<Record<number, number | null | undefined>>({});
+  // undefined = still loading, null = loaded but no rank/skill data available
+  const [ranks, setRanks] = useState<Record<number, RankBadge | undefined>>({});
   const [roles, setRoles] = useState<Record<number, number | null | undefined>>({});
   const [lanes, setLanes] = useState<Record<number, LaneOutcome | null | undefined>>({});
 
@@ -375,8 +382,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
     for (const match of pageMatches) {
       getMatch(match.match_id)
         .then((detail) => {
-          const tier = averageRankTier(detail.players.map((p) => p.rank_tier));
-          setRanks((prev) => ({ ...prev, [match.match_id]: tier }));
+          const tier = matchRankTier(detail.players.map((p) => p.rank_tier));
+          const badge: RankBadge =
+            tier != null
+              ? { label: rankTierLabel(tier), color: rankTierColor(tier) }
+              : (() => {
+                  const skillLabel = skillBracketLabel(detail.skill);
+                  return skillLabel ? { label: skillLabel, color: null } : null;
+                })();
+          setRanks((prev) => ({ ...prev, [match.match_id]: badge }));
 
           const self = detail.players.find((p) => p.player_slot === match.player_slot);
           setRoles((prev) => ({ ...prev, [match.match_id]: self?.position_est ?? null }));
@@ -613,8 +627,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
                     <div className="match-row-stacked">
                       <span>{matchLobbyLabel(m.lobby_type, m.game_mode, m.start_time)}</span>
                       <span className="text-dim small">{matchGameModeLabel(m.game_mode, m.start_time)}</span>
-                      <span className="small" style={{ color: rankTierColor(ranks[m.match_id]) ?? "var(--text-dim)" }}>
-                        {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? rankTierLabel(ranks[m.match_id]) : "-")}
+                      <span className="small" style={{ color: ranks[m.match_id]?.color ?? "var(--text-dim)" }}>
+                        {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? ranks[m.match_id]!.label : "-")}
                       </span>
                     </div>
                   </td>

@@ -5,10 +5,10 @@ import { invalidate } from "../cache";
 import type { MatchDetail as MatchDetailType, MatchPlayer } from "../types";
 import {
   abilityById,
-  averageRankTier,
   formatDuration,
   formatGameTime,
   matchModeLabel,
+  matchRankTier,
   heroIcon,
   heroName,
   heroNameByUnit,
@@ -18,6 +18,7 @@ import {
   objectiveLabel,
   rankTierColor,
   rankTierLabel,
+  skillBracketLabel,
 } from "../dota";
 import { Scoreboard } from "../components/Scoreboard";
 import { LaneMatchups } from "../components/LaneMatchups";
@@ -564,14 +565,25 @@ export function MatchDetail() {
         <div className="match-meta">
           {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type, data.start_time)} &middot; match {data.match_id}
           {(() => {
-            const avgTier = averageRankTier(data.players.map((p) => p.rank_tier));
-            if (avgTier == null) return null;
-            return (
+            const avgTier = matchRankTier(data.players.map((p) => p.rank_tier));
+            if (avgTier != null) {
+              return (
+                <>
+                  {" "}
+                  &middot; ~<span style={{ color: rankTierColor(avgTier) ?? undefined }}>{rankTierLabel(avgTier)}</span> average
+                </>
+              );
+            }
+            // Fewer than 4 players have a visible rank - too few for a
+            // meaningful average, so fall back to Valve's own lobby skill
+            // bracket for this match (when OpenDota has it).
+            const skillLabel = skillBracketLabel(data.skill);
+            return skillLabel ? (
               <>
                 {" "}
-                &middot; ~<span style={{ color: rankTierColor(avgTier) ?? undefined }}>{rankTierLabel(avgTier)}</span> average
+                &middot; {skillLabel}
               </>
-            );
+            ) : null;
           })()}
         </div>
         {!isParsed && (

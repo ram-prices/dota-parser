@@ -408,6 +408,34 @@ export function averageRankLabel(tiers: Array<number | null | undefined>): strin
   return tier == null ? null : rankTierLabel(tier);
 }
 
+// Below this many players with a visible rank_tier, an "average" is too
+// noisy to be meaningful (one or two outliers can swing it a whole medal),
+// so display should fall back to skillBracketLabel() below instead of
+// averageRankTier().
+const MIN_RANKED_PLAYERS_FOR_MATCH_RANK = 4;
+
+export function matchRankTier(tiers: Array<number | null | undefined>): number | null {
+  const rankedCount = tiers.filter((t): t is number => Boolean(t)).length;
+  if (rankedCount < MIN_RANKED_PLAYERS_FOR_MATCH_RANK) return null;
+  return averageRankTier(tiers);
+}
+
+const SKILL_LABELS: Record<number, string> = {
+  1: "Normal Skill",
+  2: "High Skill",
+  3: "Very High Skill",
+};
+
+// OpenDota's `skill` match field - Valve's own lobby skill bracket for
+// (mostly unranked) matchmaking, assigned at match time. Unlike rank_tier
+// (which reflects each player's rank as of whenever OpenDota last synced
+// their profile - see above), this is a genuine historical snapshot, but
+// it's only populated for a subset of matches.
+export function skillBracketLabel(skill: number | undefined | null): string | null {
+  if (!skill) return null;
+  return SKILL_LABELS[skill] ?? null;
+}
+
 // Lane outcome - OpenDota has no direct "did you win your lane" field, only
 // each player's lane_efficiency (a farm-vs-optimal-farm ratio, not a
 // win/loss). Derived instead from each player's actual lane group (by
