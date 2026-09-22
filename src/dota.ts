@@ -226,7 +226,7 @@ const MEDAL_COLORS: Record<number, string> = {
   2: "hsl(28, 25%, 52%)", // Guardian - flat, muted brown
   3: "hsl(187, 35%, 55%)", // Crusader - soft cyan
   4: "hsl(130, 40%, 45%)", // Archon - moderate green
-  5: "hsl(0, 55%, 50%)", // Legend - solid red
+  5: "hsl(0, 42%, 58%)", // Legend - softer red
   6: "hsl(235, 70%, 70%)", // Ancient - bold light blue with a violet tinge
   7: "hsl(45, 80%, 55%)", // Divine - bold gold
   8: "hsl(16, 90%, 50%)", // Immortal - boldest, most saturated red-gold
