@@ -46,6 +46,8 @@
      since these map to actual game teams, not generic UI meaning) */
   --radiant: #6bd58c;
   --dire: #ff7a70;
+  --ward-obs: #e0c341;
+  --ward-sen: #5b9ee8;
 
   /* Shape scale */
   --shape-xs: 8px;
@@ -665,6 +667,21 @@ tbody tr:last-child td {
   z-index: 2;
   position: relative;
   box-shadow: var(--elevation-2);
+}
+
+.ward-stat {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ward-obs {
+  color: var(--ward-obs);
+}
+.ward-sen {
+  color: var(--ward-sen);
+}
+.ward-stat-sep {
+  color: var(--text-dim);
+  margin: 0 1px;
 }
 
 /* ============================================================

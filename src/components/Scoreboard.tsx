@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { MatchPlayer } from "../types";
-import { computeApm, formatGameTime, heroIcon, heroName, itemImage, itemName, itemObtainedTime, rankTierColor, rankTierLabel, unitDisplayName } from "../dota";
+import { formatGameTime, heroIcon, heroName, itemImage, itemName, itemObtainedTime, rankTierColor, rankTierLabel, unitDisplayName } from "../dota";
 
 // Width of the sticky hero-icon + hero-name columns that stay pinned to
 // the left edge while the stat columns scroll - kept in sync with
@@ -9,12 +9,27 @@ import { computeApm, formatGameTime, heroIcon, heroName, itemImage, itemName, it
 const STICKY_WIDTH = 192;
 
 // The last column of each scroll-snap group that has another group after
-// it (Lvl/K/D/A/NW, Items, LH/DN/GPM/XPM/HD/H/TD - APM/Pings is last, so
-// there's no next group's column to hide) - used to measure each group's natural
-// width and, when it's narrower than the visible table, stretch it with
-// extra padding so the next group's first column doesn't peek into view.
-const GROUP_ENDS = ["nw", "items", "xpm"] as const;
+// it (Lvl/K/D/A/NW, Items, Wards/Destroyed, LH/DN/GPM/XPM - HD/HL/TD is
+// last, so there's no next group's column to hide) - used to measure each
+// group's natural width and, when it's narrower than the visible table,
+// stretch it with extra padding so the next group's first column doesn't
+// peek into view.
+const GROUP_ENDS = ["nw", "items", "destroyed", "xpm"] as const;
 type GroupEnd = (typeof GROUP_ENDS)[number];
+
+// obs_placed/sen_placed (Wards) and observer_kills/sentry_kills
+// (Destroyed - a ward is a killable unit, so OpenDota counts destroying
+// one as a "kill") share the same "obs/sen" display: obs count in
+// observer-ward yellow, sentry count in sentry-ward blue.
+function WardStat({ obs, sen }: { obs: number; sen: number }) {
+  return (
+    <span className="ward-stat">
+      <span className="ward-obs">{obs}</span>
+      <span className="ward-stat-sep">/</span>
+      <span className="ward-sen">{sen}</span>
+    </span>
+  );
+}
 
 function itemIdsFor(entity: { item_0: number; item_1: number; item_2: number; item_3: number; item_4: number; item_5: number; item_neutral?: number }): number[] {
   return [entity.item_0, entity.item_1, entity.item_2, entity.item_3, entity.item_4, entity.item_5, entity.item_neutral].filter(
@@ -66,17 +81,16 @@ export function Scoreboard({
   players,
   teamLabel,
   className,
-  duration,
 }: {
   players: MatchPlayer[];
   teamLabel: string;
   className: string;
-  duration: number;
 }) {
   const tableRef = useRef<HTMLTableElement>(null);
   const [extraPadding, setExtraPadding] = useState<Record<GroupEnd, number>>({
     nw: 0,
     items: 0,
+    destroyed: 0,
     xpm: 0,
   });
 
@@ -87,7 +101,7 @@ export function Scoreboard({
     const measure = () => {
       // Reset first so a previous run's extra padding doesn't get baked
       // into this run's "natural" width measurement.
-      setExtraPadding({ nw: 0, items: 0, xpm: 0 });
+      setExtraPadding({ nw: 0, items: 0, destroyed: 0, xpm: 0 });
       requestAnimationFrame(() => {
         if (!tableRef.current) return;
         const starts = Array.from(tableRef.current.querySelectorAll<HTMLElement>(".scoreboard-group-start"));
@@ -97,7 +111,7 @@ export function Scoreboard({
         const available = tableRef.current.clientWidth - STICKY_WIDTH;
         const groupStartOffsets = starts.map((el) => el.offsetLeft);
 
-        const next: Record<GroupEnd, number> = { nw: 0, items: 0, xpm: 0 };
+        const next: Record<GroupEnd, number> = { nw: 0, items: 0, destroyed: 0, xpm: 0 };
         ends.forEach((_endEl, i) => {
           const groupStart = groupStartOffsets[i];
           const groupEnd = groupStartOffsets[i + 1];
@@ -119,7 +133,7 @@ export function Scoreboard({
     const observer = new ResizeObserver(measure);
     observer.observe(table);
     return () => observer.disconnect();
-  }, [players, duration]);
+  }, [players]);
 
   return (
     <table className={`scoreboard ${className}`} ref={tableRef}>
@@ -136,22 +150,23 @@ export function Scoreboard({
           <th className="scoreboard-group-start scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.items }}>
             Items
           </th>
+          <th className="scoreboard-group-start">Wards</th>
+          <th className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.destroyed }}>
+            Destroyed
+          </th>
           <th className="scoreboard-group-start">LH</th>
           <th>DN</th>
           <th>GPM</th>
-          <th>XPM</th>
-          <th>HD</th>
-          <th>H</th>
           <th className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
-            TD
+            XPM
           </th>
-          <th className="scoreboard-group-start">APM</th>
-          <th>Pings</th>
+          <th className="scoreboard-group-start">HD</th>
+          <th>HL</th>
+          <th>TD</th>
         </tr>
       </thead>
       <tbody>
         {players.map((p) => {
-          const apm = computeApm(p.actions, duration);
           return (
             <tr key={p.player_slot}>
               <td className="hero-icon-cell">{heroIcon(p.hero_id) && <img src={heroIcon(p.hero_id)!} alt="" className="hero-icon" />}</td>
@@ -188,17 +203,21 @@ export function Scoreboard({
               <td className="scoreboard-group-start scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.items }}>
                 <ItemGroups player={p} />
               </td>
+              <td className="scoreboard-group-start">
+                <WardStat obs={p.obs_placed ?? 0} sen={p.sen_placed ?? 0} />
+              </td>
+              <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.destroyed }}>
+                <WardStat obs={p.observer_kills ?? 0} sen={p.sentry_kills ?? 0} />
+              </td>
               <td className="scoreboard-group-start">{p.last_hits}</td>
               <td>{p.denies}</td>
               <td>{p.gold_per_min}</td>
-              <td>{p.xp_per_min}</td>
-              <td>{p.hero_damage ?? "-"}</td>
-              <td>{p.hero_healing ?? "-"}</td>
               <td className="scoreboard-group-end" style={{ paddingRight: 14 + extraPadding.xpm }}>
-                {p.tower_damage ?? "-"}
+                {p.xp_per_min}
               </td>
-              <td className="scoreboard-group-start">{apm ?? "-"}</td>
-              <td>{p.pings ?? "-"}</td>
+              <td className="scoreboard-group-start">{p.hero_damage ?? "-"}</td>
+              <td>{p.hero_healing ?? "-"}</td>
+              <td>{p.tower_damage ?? "-"}</td>
             </tr>
           );
         })}

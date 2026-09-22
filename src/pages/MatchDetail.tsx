@@ -202,8 +202,8 @@ export function MatchDetail() {
 
   const overviewTab = (
     <>
-      <Scoreboard players={radiant} teamLabel="Radiant" className="team-radiant" duration={data.duration} />
-      <Scoreboard players={dire} teamLabel="Dire" className="team-dire" duration={data.duration} />
+      <Scoreboard players={radiant} teamLabel="Radiant" className="team-radiant" />
+      <Scoreboard players={dire} teamLabel="Dire" className="team-dire" />
 
       {data.players.some((p) => (p.ability_upgrades_arr ?? []).length > 0) && (
         <div className="section">

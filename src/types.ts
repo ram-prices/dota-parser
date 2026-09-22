@@ -130,6 +130,10 @@ export interface MatchPlayer {
   buyback_log?: LogEntry[];
   obs_log?: LogEntry[];
   sen_log?: LogEntry[];
+  obs_placed?: number;
+  sen_placed?: number;
+  observer_kills?: number;
+  sentry_kills?: number;
   pings?: number;
   actions?: Record<string, number>;
   stuns?: number;
