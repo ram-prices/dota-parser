@@ -129,13 +129,13 @@ that publishes the built site to GitHub Pages on every push to `main`:
 2. Push to `main`. Your dashboard will be live at
    `https://<you>.github.io/<repo-name>/`.
 
-By default, each visitor (i.e. you, on each device) still enters their
-account once via the Settings page — nothing personal is baked into the
-deployed build. If you'd rather the deployed site just always show your
-stats with zero setup, copy `.env.example` to `.env`, fill in
-`VITE_DEFAULT_ACCOUNT_ID`, and either build locally with that `.env` or add
-it as a repository secret (`VITE_DEFAULT_ACCOUNT_ID`) so the GitHub Actions
-build picks it up.
+This deployment is set up for one account (`90031862`, hardcoded in
+`deploy.yml`) — the live site loads straight to those stats on any device,
+no Settings step needed. The Settings page still works if you ever want to
+look at a different account_id in your own browser; it just won't change
+what other devices/visitors see by default. To point the deployed site at
+a different account permanently, change the `VITE_DEFAULT_ACCOUNT_ID` value
+in `.github/workflows/deploy.yml` and push.
 
 Note this doesn't add any real privacy: the deployed page is just calling
 the same public OpenDota API anyone can call directly — it's exactly as

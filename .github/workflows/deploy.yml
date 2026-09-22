@@ -1,13 +1,15 @@
 name: Deploy to GitHub Pages
 
-# Optional: publishes the dashboard as a static site at
-# https://<you>.github.io/<repo>/ on every push to main.
-# Not required to use the app - `npm run dev` locally works without this.
+# Publishes the dashboard as a static site at https://<you>.github.io/<repo>/
+# on every push to main. Not required to use the app - `npm run dev` locally
+# works without this.
 #
 # To enable: Settings -> Pages -> Source -> "GitHub Actions" in this repo.
-# If you want the deployed site to load your stats with no per-device
-# setup, add repo secrets VITE_DEFAULT_ACCOUNT_ID (and optionally
-# VITE_OPENDOTA_API_KEY) under Settings -> Secrets and variables -> Actions.
+#
+# This site is set up for one account (90031862) - the build defaults to it
+# below, so it loads straight to those stats on any device with no Settings
+# step. Add a repo secret VITE_OPENDOTA_API_KEY under Settings -> Secrets
+# and variables -> Actions if you ever need a higher OpenDota rate limit.
 
 on:
   push:
@@ -36,7 +38,7 @@ jobs:
       - run: npm run build
         env:
           GITHUB_PAGES_BASE: /${{ github.event.repository.name }}/
-          VITE_DEFAULT_ACCOUNT_ID: ${{ secrets.VITE_DEFAULT_ACCOUNT_ID }}
+          VITE_DEFAULT_ACCOUNT_ID: "90031862"
           VITE_OPENDOTA_API_KEY: ${{ secrets.VITE_OPENDOTA_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
