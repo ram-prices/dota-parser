@@ -50,19 +50,34 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commits (and pushes) whatever's been fetched so far. Called
-          # periodically during the loop below, not just once at the end -
-          # a run that gets cancelled or hits the timeout-minutes cutoff
-          # (below) would otherwise lose everything it fetched, since
-          # nothing would ever have been committed. This bit us once: a
-          # 90-minute run fetched 3000 matches and lost all of them when it
-          # got cancelled a few seconds before an end-of-run commit step.
+          # Commits whatever's staged and pushes, retrying with a rebase on
+          # conflict - request-parse.yml also pushes to this branch every
+          # 20 minutes, and a run of this workflow takes long enough that
+          # the two can genuinely collide (this bit us: a push got
+          # rejected outright and failed the whole run instead of retrying).
+          commit_and_push() {
+            local message="$1"
+            if ! git diff --cached --quiet; then
+              git commit -q -m "$message"
+              for attempt in 1 2 3; do
+                if git push -q; then
+                  return 0
+                fi
+                echo "Push rejected (probably request-parse.yml pushed in the meantime) - rebasing and retrying ($attempt/3)..."
+                git pull --rebase -q
+              done
+            fi
+          }
+
+          # Called periodically during the loop below, not just once at the
+          # end - a run that gets cancelled or hits the timeout-minutes
+          # cutoff (below) would otherwise lose everything it fetched,
+          # since nothing would ever have been committed. This bit us once
+          # too: a 90-minute run fetched 3000 matches and lost all of them
+          # when it got cancelled a few seconds before an end-of-run commit.
           commit_progress() {
             git add matches
-            if ! git diff --cached --quiet; then
-              git commit -q -m "Export match JSON [skip ci]"
-              git push -q
-            fi
+            commit_and_push "Export match JSON [skip ci]"
           }
 
           api_key_arg=()
@@ -107,10 +122,7 @@ jobs:
           # how much of the rest of the export completes.
           echo "$matches_json" | jq -c 'sort_by(.match_id) | reverse' > matches-index.json
           git add matches-index.json
-          if ! git diff --cached --quiet; then
-            git commit -q -m "Update match list index [skip ci]"
-            git push -q
-          fi
+          commit_and_push "Update match list index [skip ci]"
 
           # Newest first, so a partial/interrupted run still covers your
           # most-likely-to-be-viewed matches before older ones.

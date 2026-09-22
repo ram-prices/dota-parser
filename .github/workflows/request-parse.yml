@@ -150,7 +150,17 @@ jobs:
           git add matches-index.json
           if ! git diff --cached --quiet; then
             git commit -q -m "Update match list index [skip ci]"
-            git push -q
+            # Retries with a rebase on conflict - a long export-matches.yml
+            # run pushes to this same branch periodically too, so the two
+            # can genuinely collide (a plain rejected push would otherwise
+            # fail this step outright instead of just retrying).
+            for attempt in 1 2 3; do
+              if git push -q; then
+                break
+              fi
+              echo "Push rejected (probably export-matches.yml pushed in the meantime) - rebasing and retrying ($attempt/3)..."
+              git pull --rebase -q
+            done
           else
             echo "Index unchanged."
           fi
