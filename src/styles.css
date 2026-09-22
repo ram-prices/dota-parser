@@ -624,7 +624,22 @@ tbody tr:last-child td {
 
 .item-row {
   display: flex;
+  align-items: center;
+}
+/* A player's own items are one group; a persistent summon with its own
+   inventory (Lone Druid's Spirit Bear) adds a second group right after,
+   separated by a thin divider rather than its own row - keeps the same
+   row height as every other player instead of growing the table. */
+.item-row-group {
+  display: flex;
+  align-items: center;
   gap: 3px;
+}
+.item-row-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--md-outline-variant);
+  margin: 0 5px;
 }
 .item-icon {
   width: 24px;
@@ -747,19 +762,6 @@ tbody tr:last-child td {
 .scoreboard-kda-cell {
   padding-left: 4px;
   padding-right: 4px;
-}
-
-/* Right under a player with a persistent inventory-holding summon (Lone
-   Druid's Spirit Bear) - visually subordinate to the real player row
-   above it: smaller, dimmer, tighter, no hover highlight of its own. */
-.scoreboard-summon-row td {
-  padding-top: 6px;
-  padding-bottom: 6px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--md-outline-variant);
-}
-.scoreboard-summon-row:hover {
-  background: transparent;
 }
 
 /* Instead of free-scrolling through 12 stat columns, scrolling/swiping
