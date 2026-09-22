@@ -9,10 +9,11 @@ import {
   gameModeName,
   heroIcon,
   heroName,
+  isEventGameMode,
   isRadiant,
   laneOutcome,
   laneOutcomeLabel,
-  lobbyTypeLabel,
+  matchLobbyLabel,
   positionLabel,
   positionShort,
   rankTierColor,
@@ -29,13 +30,16 @@ type TimeRangeFilter = "all" | "7d" | "30d" | "90d" | "180d" | "365d";
 
 // Mode is multi-select (any combination, or none = no filtering) rather
 // than a single dropdown value, since "show me Ranked and Bot Match but
-// not Unranked" is a perfectly normal thing to want. lobby_type values
-// per LOBBY_TYPES in dota.ts.
-const MODE_OPTIONS: { value: number; label: string }[] = [
+// not Unranked" is a perfectly normal thing to want. Ranked/Unranked/Bot
+// Match are lobby_type values; "event" is special-cased since event/
+// modifier games (Diretide, Mutation, ...) don't have a lobby_type of
+// their own - see isEventGameMode() in dota.ts.
+type ModeFilterKey = number | "event";
+const MODE_OPTIONS: { value: ModeFilterKey; label: string }[] = [
   { value: 7, label: "Ranked" },
   { value: 0, label: "Unranked" },
   { value: 4, label: "Bot Match" },
-  { value: 21, label: "Event" },
+  { value: "event", label: "Event" },
 ];
 
 const TIME_RANGE_LABELS: Record<Exclude<TimeRangeFilter, "all">, string> = {
@@ -68,10 +72,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialHero = Math.floor(Number(searchParams.get("hero"))) || 0;
   const initialResult = (searchParams.get("result") as ResultFilter) || "all";
   const rawModeParam = searchParams.get("mode");
-  const initialMode = rawModeParam
+  const initialMode: ModeFilterKey[] = rawModeParam
     ? rawModeParam
         .split(",")
-        .map(Number)
+        .map((token): ModeFilterKey => (token === "event" ? "event" : Number(token)))
         .filter((v) => MODE_OPTIONS.some((o) => o.value === v))
     : [];
   const initialGameMode = Math.floor(Number(searchParams.get("gm"))) || 0;
@@ -92,7 +96,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [page, setPage] = useState(initialPage);
   const [heroFilter, setHeroFilter] = useState(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
-  const [modeFilter, setModeFilter] = useState<number[]>(initialMode);
+  const [modeFilter, setModeFilter] = useState<ModeFilterKey[]>(initialMode);
   const [gameModeFilter, setGameModeFilter] = useState(initialGameMode);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
@@ -107,7 +111,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     page?: number;
     hero?: number;
     result?: ResultFilter;
-    mode?: number[];
+    mode?: ModeFilterKey[];
     gameMode?: number;
     faction?: FactionFilter;
     party?: PartyFilter;
@@ -191,10 +195,19 @@ export function Dashboard({ accountId }: { accountId: number }) {
     return Array.from(new Set(allMatches.map((m) => m.hero_id))).sort((a, b) => heroName(a).localeCompare(heroName(b)));
   }, [allMatches]);
 
+  const isEventModeActive = modeFilter.includes("event");
+
+  // Event/modifier game modes (Diretide, Mutation, ...) are only offered
+  // as Game Mode options once "Event" is toggled on in the Mode filter -
+  // picking "Mutation" without that doesn't make sense since the Mode
+  // filter would already be excluding it (or, with no Mode filter active
+  // at all, it'd be a confusing way to reach a handful of oddball games).
   const gameModeOptions = useMemo(() => {
     if (!allMatches) return [];
-    return Array.from(new Set(allMatches.map((m) => m.game_mode))).sort((a, b) => gameModeName(a).localeCompare(gameModeName(b)));
-  }, [allMatches]);
+    const modes = Array.from(new Set(allMatches.map((m) => m.game_mode)));
+    const visible = isEventModeActive ? modes : modes.filter((m) => !isEventGameMode(m));
+    return visible.sort((a, b) => gameModeName(a).localeCompare(gameModeName(b)));
+  }, [allMatches, isEventModeActive]);
 
   const filtered = useMemo(() => {
     if (!allMatches) return null;
@@ -206,7 +219,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (resultFilter === "win" && !won) return false;
         if (resultFilter === "loss" && won) return false;
       }
-      if (modeFilter.length > 0 && !modeFilter.includes(m.lobby_type)) return false;
+      if (modeFilter.length > 0) {
+        const matchesMode = modeFilter.some((key) => (key === "event" ? isEventGameMode(m.game_mode) : m.lobby_type === key));
+        if (!matchesMode) return false;
+      }
       if (gameModeFilter && m.game_mode !== gameModeFilter) return false;
       if (factionFilter !== "all") {
         const radiant = isRadiant(m.player_slot);
@@ -329,8 +345,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 type="button"
                 className={`filter-chip ${modeFilter.includes(opt.value) ? "filter-chip-active" : ""}`}
                 onClick={() => {
-                  const next = modeFilter.includes(opt.value) ? modeFilter.filter((v) => v !== opt.value) : [...modeFilter, opt.value];
-                  updateParams({ mode: next, page: 1 });
+                  const isActive = modeFilter.includes(opt.value);
+                  const next = isActive ? modeFilter.filter((v) => v !== opt.value) : [...modeFilter, opt.value];
+                  // Turning "Event" off while an event-only game mode is
+                  // selected would leave the Game Mode dropdown pointed at
+                  // an option it's about to hide - reset it back to "All".
+                  const clearGameMode = opt.value === "event" && isActive && isEventGameMode(gameModeFilter);
+                  updateParams(clearGameMode ? { mode: next, gameMode: 0, page: 1 } : { mode: next, page: 1 });
                 }}
               >
                 {opt.label}
@@ -424,7 +445,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   </td>
                   <td className="match-row-mode-cell">
                     <div className="match-row-stacked">
-                      <span>{lobbyTypeLabel(m.lobby_type)}</span>
+                      <span>{matchLobbyLabel(m.lobby_type, m.game_mode)}</span>
                       <span className="text-dim small">{gameModeName(m.game_mode)}</span>
                       <span className="small" style={{ color: rankTierColor(ranks[m.match_id]) ?? "var(--text-dim)" }}>
                         {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? rankTierLabel(ranks[m.match_id]) : "-")}

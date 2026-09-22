@@ -148,11 +148,33 @@ export function lobbyTypeLabel(lobbyType: number | undefined | null): string {
   return LOBBY_TYPES[lobbyType] ?? `Lobby ${lobbyType}`;
 }
 
+// Valve-run limited-time event modes/modifiers - The Diretide, the
+// generic "Event Game" mode, and seasonal Mutations. Deliberately doesn't
+// include Custom Game (15): that's user-made Arcade content, not a
+// Valve event, even though it happens to share the "not a normal game"
+// flavor. These report ordinary-looking lobby_type values (0, 4, 12 in
+// practice, not some dedicated "event" lobby type), so without this a
+// Diretide match just reads as "Unranked" like any other.
+const EVENT_GAME_MODES = new Set([7, 19, 24]);
+
+export function isEventGameMode(gameMode: number | undefined | null): boolean {
+  return gameMode != null && EVENT_GAME_MODES.has(gameMode);
+}
+
+// What the Matches tab's "Mode" column shows - lobby_type-derived, except
+// event/modifier games always read "Event" regardless of their (often
+// misleading) lobby_type.
+export function matchLobbyLabel(lobbyType: number | undefined | null, gameMode: number | undefined | null): string {
+  if (isEventGameMode(gameMode)) return "Event";
+  return lobbyTypeLabel(lobbyType);
+}
+
 // Combines lobby_type with game_mode for an accurate label (e.g. "Ranked
 // All Pick" vs plain "All Pick" vs "Bot Match All Pick") instead of
 // assuming a mode.
 export function matchModeLabel(mode: number | undefined | null, lobbyType: number | undefined | null): string {
   const base = gameModeName(mode);
+  if (isEventGameMode(mode)) return base;
   if (lobbyType === 7) return `Ranked ${base}`;
   if (lobbyType != null && lobbyType !== 0) return `${lobbyTypeLabel(lobbyType)} ${base}`;
   return base;
