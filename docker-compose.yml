@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dota}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dota}
+      POSTGRES_DB: ${POSTGRES_DB:-dota_parser}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dota}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Dota 2 replay (.dem) parser. Same open-source engine behind OpenDota's
+  # in-depth match pages. It fetches the replay itself (handles the .bz2
+  # download from Valve's CDN) and streams back parsed match data.
+  parser:
+    image: odota/parser:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5600:5600"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      parser:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-dota}:${POSTGRES_PASSWORD:-dota}@postgres:5432/${POSTGRES_DB:-dota_parser}
+      PARSER_URL: http://parser:5600
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend_data:/app/data
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:
+  backend_data:
