@@ -114,19 +114,21 @@ export function Scoreboard({
                 {(p.personaname || p.rank_tier) && (
                   <div className="player-meta text-dim small">
                     {p.personaname && (
-                      <span className="player-name" title={p.personaname}>
+                      <div className="player-name" title={p.personaname}>
                         {p.account_id ? <Link to={`/vs/${p.account_id}`}>{p.personaname}</Link> : p.personaname}
-                      </span>
+                      </div>
                     )}
-                    {/* Rank never truncates with the name - it's the more
-                        useful of the two when space is tight, so the name
-                        is what shrinks first. */}
-                    {p.rank_tier && (
-                      <span className="player-rank">
-                        {p.personaname ? " · " : ""}
+                    {/* Own line rather than inline after the name - always
+                        rendered (blank when there's no rank) so every
+                        row's height stays the same regardless of whether
+                        that particular player has a visible rank. */}
+                    <div className="player-rank">
+                      {p.rank_tier ? (
                         <span style={{ color: rankTierColor(p.rank_tier) ?? undefined }}>{rankTierLabel(p.rank_tier)}</span>
-                      </span>
-                    )}
+                      ) : (
+                        " "
+                      )}
+                    </div>
                   </div>
                 )}
               </td>

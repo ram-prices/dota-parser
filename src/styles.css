@@ -709,10 +709,12 @@ tbody tr:last-child td {
   text-overflow: ellipsis;
 }
 .scoreboard tbody .hero-name-cell .player-meta {
-  /* Overrides the rule above - the name and rank truncate independently
-     (via flex-shrink priority below) rather than as one block, so a long
-     username can no longer push the rank text off the edge. */
+  /* Overrides the rule above - name and rank are each their own line
+     (rather than one ellipsis-truncated block), and the rank line is
+     always rendered (blank when the player has no rank) so every row is
+     the same height regardless of whether its player has a visible rank. */
   display: flex;
+  flex-direction: column;
   overflow: visible;
   white-space: normal;
 }
@@ -720,10 +722,8 @@ tbody tr:last-child td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
 .scoreboard tbody .hero-name-cell .player-rank {
-  flex-shrink: 0;
   white-space: nowrap;
 }
 
