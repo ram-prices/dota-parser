@@ -4,6 +4,4 @@ build/
 *.log
 .env
 .DS_Store
-*.dem
-*.dem.bz2
 *.tsbuildinfo

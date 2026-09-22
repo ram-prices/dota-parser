@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+# Optional: publishes the dashboard as a static site at
+# https://<you>.github.io/<repo>/ on every push to main.
+# Not required to use the app - `npm run dev` locally works without this.
+#
+# To enable: Settings -> Pages -> Source -> "GitHub Actions" in this repo.
+# If you want the deployed site to load your stats with no per-device
+# setup, add repo secrets VITE_DEFAULT_ACCOUNT_ID (and optionally
+# VITE_OPENDOTA_API_KEY) under Settings -> Secrets and variables -> Actions.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build
+        env:
+          GITHUB_PAGES_BASE: /${{ github.event.repository.name }}/
+          VITE_DEFAULT_ACCOUNT_ID: ${{ secrets.VITE_DEFAULT_ACCOUNT_ID }}
+          VITE_OPENDOTA_API_KEY: ${{ secrets.VITE_OPENDOTA_API_KEY }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

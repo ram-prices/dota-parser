@@ -1,145 +1,135 @@
-# Dota Parser
+# Dota Stats Dashboard
 
-A self-hosted, Dotabuff-style Dota 2 match tracker. Point it at your (or your
-friends') Steam account(s) and it will:
+A personal, Dotabuff/OpenDota-style stats dashboard for your own Dota 2
+matches — plus a few views neither of those sites gives you out of the box
+(custom trend charts, a searchable chat log, filtered match views).
 
-1. Poll Valve's official Steam Web API every few minutes for new matches.
-2. When a new match shows up, download the replay from Valve's CDN.
-3. Parse the replay for in-depth stats (gold/XP graphs, item purchase
-   timing, kills, wards, etc.) using [odota/parser](https://github.com/odota/parser),
-   the same open-source parsing engine that powers OpenDota's match pages.
-4. Store everything in Postgres and show it in a web dashboard.
+**No server, no database, no Docker.** It's a single static web page that
+calls the free [OpenDota API](https://docs.opendota.com/) straight from
+your browser. OpenDota already parses replays for millions of matches
+(yours are very likely already parsed, or can be parsed on demand) and
+exposes everything over REST — so there's no replay downloading or parsing
+to build or run yourself.
 
-**This has to run somewhere that's on all the time** (your PC while you play,
-a home server, a small VPS, a Raspberry Pi, etc.) — it can't watch for new
-matches if it isn't running. It does not need to run on the same machine as
-your Dota client; it only needs internet access to reach Steam's API and
-Valve's replay CDN.
-
-## How the pieces fit together
+## How it works
 
 ```
- Steam Web API  ──▶  backend (poller)  ──▶  odota/parser  ──▶  Postgres  ──▶  frontend
-(match history)      (Node/Express)        (parses .dem)     (storage)      (React)
+ your browser ──▶ api.opendota.com ──▶ response cached in localStorage
 ```
 
-- `backend/` — Node/TypeScript service. Every `POLL_INTERVAL_SECONDS` it
-  checks each tracked account's recent match history, and for any match it
-  hasn't seen yet: fetches full match details from Steam, builds the replay
-  download URL, asks the parser service to fetch + parse it, and saves the
-  result.
-- `parser/` — not custom code, just the official `odota/parser` Docker
-  image. It downloads the `.dem.bz2` replay itself and streams back parsed
-  JSON (per-player gold/XP over time, purchases, kills, wards, etc.).
-- `frontend/` — a small dashboard: match list per tracked account, and a
-  match detail page with a full scoreboard, item builds, and gold/XP
-  advantage graphs.
+- You enter your Steam account once (Settings page); it's saved in your
+  browser's `localStorage`.
+- Every page fetches directly from `https://api.opendota.com/api/...`.
+- Match details (`/matches/{id}`) never change once parsed, so they're
+  cached in `localStorage` forever — you'll never re-spend an API call on
+  a match you've already opened. Lists (recent matches, hero stats,
+  teammates) refresh every 5 minutes.
 
-## 1. Get a Steam Web API key
+Because there's no backend, "running" this just means opening the page —
+locally with `npm run dev`, or as an actual deployed website (see
+**Deploying** below) you can check from your phone.
 
-Go to <https://steamcommunity.com/dev/apikey>, sign in, and register a key
-(you can put anything for the domain, e.g. `localhost`). Keep this key
-private — treat it like a password.
+## 1. Find your account
 
-## 2. Find your SteamID64
+You need your **SteamID64** (or a Steam profile URL, or the shorter
+`account_id` — the app accepts any of the three). Go to
+<https://steamid.io/>, paste your Steam profile URL, and copy the
+**steamID64** value.
 
-Go to <https://steamid.io/>, paste your Steam profile URL, and copy the
-**steamID64** value (a long number starting with `7656119...`). You can list
-more than one account (e.g. to track a friend group) — separate them with
-commas.
+Also make sure **"Expose Public Match Data"** is on in the Dota 2 client
+(Settings → Options → Advanced) — without it, the API can't see your match
+history.
 
-Also make sure **"Expose Public Match Data"** is turned on in the Dota 2
-client (Settings → Options → Advanced), otherwise Steam won't return your
-match history to the API.
+## 2. Run it locally
 
-## 3. Configure
+You need [Node.js](https://nodejs.org/) 22+ installed.
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` and fill in:
-
-```
-STEAM_API_KEY=your_key_here
-STEAM_ACCOUNT_IDS=76561198012345678
-```
-
-## 4. Run it
-
-You need [Docker](https://docs.docker.com/get-docker/) installed. Then:
-
-```bash
-docker compose up -d --build
-```
-
-This starts four containers: Postgres, the replay parser, the backend
-poller/API, and the frontend. First boot takes a minute or two while images
-build.
-
-Open **http://localhost:3000** for the dashboard.
-
-To watch the logs (useful for seeing polling/parsing activity):
-
-```bash
-docker compose logs -f backend
-```
-
-To stop everything: `docker compose down` (add `-v` to also wipe the
-database).
-
-## What you'll see
-
-- **Dashboard**: your recent matches — win/loss, hero, KDA, last hits/denies,
-  GPM/XPM, final items, and how long ago each match was.
-- **Match page**: a full 10-player scoreboard split by team, item builds,
-  and (once the replay is parsed) a gold-advantage and XP-advantage graph
-  over the course of the game.
-- Each match shows a small badge: `pending` → `parsing` → `parsed`, or
-  `no_replay` / `failed` if Valve's replay wasn't available or parsing hit
-  an error. Basic scoreboard stats (from Steam directly) still show up even
-  when the deep parse fails — only the graphs/timelines need the replay
-  parse to succeed.
-- A **"Show raw parser data"** button on the match page, in case you want to
-  see everything the parser extracted, including fields the dashboard
-  doesn't have a dedicated visualization for yet.
-
-## Known limitations (read this before you assume something is broken)
-
-- **Replay availability**: Valve only keeps replays on their CDN for a
-  limited time after a match ends (longer if you have Dota Plus). If the
-  poller doesn't run for a while, you may miss the replay window for some
-  matches — you'll still get basic Steam stats, just not the deep graphs.
-- **Polling, not push notifications**: Valve doesn't offer a "match just
-  finished" webhook, so this checks periodically (`POLL_INTERVAL_SECONDS`,
-  default 300s). Lower it if you want matches to show up faster; Valve's API
-  has its own rate limits, so don't set it extremely low.
-- **Parser output can evolve**: `odota/parser`'s exact field names have
-  shifted slightly across Dota patches historically. The backend stores the
-  full raw parser output no matter what, and the dashboard is built to
-  degrade gracefully (basic stats always work; graphs/timelines only need
-  small tweaks in `backend/src/matchView.ts` if a field name ever changes).
-- Turbo/custom/co-op bot matches may not have a `replay_salt` at all — those
-  are marked `no_replay` and only show basic Steam stats.
-
-## Local development (without Docker)
-
-You'll need Node.js 22+, a local Postgres, and a running `odota/parser`
-container (`docker run -p 5600:5600 odota/parser`).
-
-```bash
-# backend
-cd backend
-npm install
-DATABASE_URL=postgres://dota:dota@localhost:5432/dota_parser \
-PARSER_URL=http://localhost:5600 \
-npm run dev
-
-# frontend (separate terminal)
-cd frontend
 npm install
 npm run dev
 ```
 
-The frontend dev server proxies `/api` to `http://localhost:8080` (see
-`frontend/vite.config.ts`).
+Open the URL it prints (usually <http://localhost:5173>). On first load
+it'll send you to **Settings** to enter your account — after that it
+remembers you in this browser.
+
+## What you get
+
+- **Matches** — your recent games: hero, K/D/A, GPM/XPM, result, mode.
+- **Match detail** — full 10-player scoreboard, item builds, skill build
+  order, a gold-advantage and XP-advantage graph over the game, an item
+  purchase timeline, kill feed, ward placements, and a searchable **chat
+  log**.
+- **Trends** — win rate by week over your recent matches, plus a
+  hero/result filter over that same match set.
+- **Heroes** — your per-hero games/win-rate, plus win rate with/against
+  each hero.
+- **Teammates** — win rate alongside people you've played with.
+- **Chat search** — full-text search across the chat logs of every match
+  you've opened in this browser (search widens as you browse more
+  matches).
+- A **"Show raw OpenDota match data"** toggle on every match page, so
+  nothing OpenDota returns is ever hidden even if the dashboard doesn't
+  have a dedicated view for it yet.
+
+## If a match shows "hasn't been parsed yet"
+
+OpenDota parses replays either automatically (for tracked/high-MMR
+players) or on request. If a recent match of yours shows up with only
+basic stats, click **Request parse** on that match page — it asks OpenDota
+to fetch and parse the replay from Valve, which takes anywhere from a few
+seconds to a couple minutes.
+
+**This only works while Valve still hosts the replay** — roughly 8-14 days
+after the match ends. After that window, a match can only ever show deep
+stats if someone (you, or OpenDota itself) already requested the parse
+while the replay was still available. There's no way to backfill parsing
+for an old, never-parsed match — that data is gone for good on Valve's
+end.
+
+## Rate limits
+
+The free OpenDota tier is 60 requests/minute and 2,000/day — the caching
+described above makes that go a long way for personal use. If you still
+hit limits, get a free key at <https://www.opendota.com/api-keys> and paste
+it into Settings (or `VITE_OPENDOTA_API_KEY`, see below) for a higher cap.
+
+## Deploying (optional)
+
+If you'd rather have a real URL than running `npm run dev` each time, this
+repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`)
+that publishes the built site to GitHub Pages on every push to `main`:
+
+1. In the repo's GitHub settings: **Pages → Source → GitHub Actions**.
+2. Push to `main`. Your dashboard will be live at
+   `https://<you>.github.io/<repo-name>/`.
+
+By default, each visitor (i.e. you, on each device) still enters their
+account once via the Settings page — nothing personal is baked into the
+deployed build. If you'd rather the deployed site just always show your
+stats with zero setup, copy `.env.example` to `.env`, fill in
+`VITE_DEFAULT_ACCOUNT_ID`, and either build locally with that `.env` or add
+it as a repository secret (`VITE_DEFAULT_ACCOUNT_ID`) so the GitHub Actions
+build picks it up.
+
+Note this doesn't add any real privacy: the deployed page is just calling
+the same public OpenDota API anyone can call directly — it's exactly as
+private (or public) as your data already is on opendota.com.
+
+## Project layout
+
+```
+src/
+  opendota.ts       OpenDota API client (one function per endpoint)
+  cache.ts          localStorage caching (forever for matches, 5min for lists)
+  settings.ts       account_id / API key storage + SteamID64 parsing
+  dota.ts           hero/item/ability id -> name/icon lookups, formatting helpers
+  data/             hero/item/ability name+image data (from odota/dotaconstants)
+  pages/            one file per route (Dashboard, MatchDetail, Trends, ...)
+  components/       Scoreboard, AdvantageChart (shared across pages)
+```
+
+To add your own view: add a `.tsx` file under `src/pages/`, wire it into
+`src/App.tsx`'s `<Routes>`, and call the existing functions in
+`src/opendota.ts` (add a new one there if you need an endpoint that isn't
+covered yet — see <https://docs.opendota.com/> for the full API).
