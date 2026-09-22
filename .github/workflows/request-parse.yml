@@ -1,0 +1,60 @@
+name: Request OpenDota parses
+
+# Periodically asks OpenDota to parse the newest replays for a tracked
+# account, so "in-depth" match data (gold/XP graphs, purchase log, chat,
+# etc.) shows up on the dashboard without manually clicking "Request parse"
+# after every game.
+#
+# Also runnable by hand (Actions tab -> this workflow -> Run workflow) with
+# a bigger `limit` to sweep further back through match history - useful
+# once, right after setting this up, to grab whatever replays Valve still
+# happens to have (usually ~8-14 days post-match; older unparsed matches
+# can no longer be parsed no matter what).
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+    inputs:
+      account_id:
+        description: "OpenDota account_id (32-bit) to request parses for"
+        default: "90031862"
+      limit:
+        description: "How many of the most recent matches to request-parse"
+        default: "5"
+
+jobs:
+  request-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request parses from OpenDota
+        env:
+          ACCOUNT_ID: ${{ github.event.inputs.account_id || '90031862' }}
+          LIMIT: ${{ github.event.inputs.limit || '5' }}
+          API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
+        run: |
+          api_key_arg=()
+          if [ -n "$API_KEY" ]; then
+            api_key_arg=(--data-urlencode "api_key=$API_KEY")
+          fi
+
+          echo "Fetching last $LIMIT matches for account $ACCOUNT_ID..."
+          matches=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+            --data-urlencode "limit=$LIMIT" "${api_key_arg[@]}")
+
+          match_ids=$(echo "$matches" | jq -r 'if type=="array" then .[].match_id else empty end')
+
+          if [ -z "$match_ids" ]; then
+            echo "No matches returned - check the account_id and that 'Expose Public Match Data' is on in the Dota 2 client."
+            echo "$matches"
+            exit 0
+          fi
+
+          count=0
+          for id in $match_ids; do
+            echo "Requesting parse for match $id"
+            curl -sS -G -X POST "https://api.opendota.com/api/request/$id" "${api_key_arg[@]}" -o /dev/null || true
+            count=$((count + 1))
+            sleep 1.2
+          done
+          echo "Requested parses for $count matches."

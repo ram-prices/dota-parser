@@ -87,6 +87,31 @@ while the replay was still available. There's no way to backfill parsing
 for an old, never-parsed match — that data is gone for good on Valve's
 end.
 
+## Auto-requesting parses (optional)
+
+`.github/workflows/request-parse.yml` runs on a schedule (every 20 minutes)
+and asks OpenDota to parse the newest few matches for a given account_id —
+so new games show up with full in-depth data without you ever clicking
+"Request parse" by hand. It's hardcoded to account_id `90031862` by
+default; edit the `default:` values in that file to point at a different
+account, or trigger it manually (Actions tab → "Request OpenDota parses" →
+Run workflow) with a bigger `limit` to sweep further back through match
+history — handy for a one-time backfill of whatever replays Valve still
+happens to have.
+
+This needs no secrets to work, but if you hit rate limits, add a repo
+secret `OPENDOTA_API_KEY` (Settings → Secrets and variables → Actions) and
+the workflow will use it automatically.
+
+Two things worth knowing:
+- It only requests a parse — it can't make Valve provide a replay that's
+  already expired (~8-14 days post-match). Very old, never-parsed matches
+  are gone for good regardless of how often this runs.
+- GitHub automatically disables scheduled workflows after 60 days with no
+  repo activity. For an actively-used personal project that's unlikely to
+  matter, but if matches stop getting auto-parsed after a long break, check
+  the Actions tab and re-enable it.
+
 ## Rate limits
 
 The free OpenDota tier is 60 requests/minute and 2,000/day — the caching
