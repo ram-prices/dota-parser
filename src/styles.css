@@ -489,11 +489,14 @@ tbody tr:last-child td {
   margin-bottom: 20px;
 }
 .match-row {
+  /* One row, every field its own column, at every width - KDA and the
+     Ranked/All Pick/Avg Rank stack sit side by side, not one above the
+     other. Columns size to their own content (no 1fr) and
+     justify-content spreads whatever space is left evenly across the
+     gaps instead of dumping it all into one column. */
   display: grid;
-  grid-template-columns: 70px 44px 1fr auto;
-  grid-template-areas:
-    "hero result kda  dur"
-    "hero result mode mode";
+  grid-template-columns: 70px 44px auto auto auto;
+  grid-template-areas: "hero result kda mode dur";
   align-items: center;
   column-gap: 10px;
   row-gap: 3px;
@@ -503,18 +506,11 @@ tbody tr:last-child td {
   text-decoration: none;
   animation: row-in var(--duration-medium) var(--motion-emphasized) both;
   transition: background var(--duration-short) var(--motion-standard);
+  justify-content: space-between;
 }
 @media (min-width: 641px) {
   .match-row {
-    /* No 1fr tracks here on purpose: every column sizes to its own
-       content (auto), and justify-content spreads whatever space is left
-       evenly across the gaps instead of dumping it all into one column,
-       which is what happened when "mode" was a 1fr track with short
-       left-aligned text in it. */
-    grid-template-columns: 70px 44px 90px auto 100px;
-    grid-template-areas: "hero result kda mode dur";
     column-gap: 22px;
-    justify-content: space-between;
   }
 }
 .match-row:last-child {
