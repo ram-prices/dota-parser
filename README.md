@@ -100,18 +100,22 @@ end.
 ## Auto-requesting parses (optional)
 
 `.github/workflows/request-parse.yml` runs on a schedule (every 20 minutes)
-and asks OpenDota to parse the newest few matches for a given account_id —
-so new games show up with full in-depth data without you ever clicking
-"Request parse" by hand. It's hardcoded to account_id `90031862` by
-default; edit the `default:` values in that file to point at a different
-account, or trigger it manually (Actions tab → "Request OpenDota parses" →
-Run workflow) with a bigger `limit` to sweep further back through match
-history — handy for a one-time backfill of whatever replays Valve still
-happens to have.
+and asks OpenDota to parse a tracked account's newest match(es) — so new
+games show up with full in-depth data without you ever clicking "Request
+parse" by hand. It's hardcoded to account_id `90031862` by default; edit
+the `default:` values in that file to point at a different account.
 
-This needs no secrets to work, but if you hit rate limits, add a repo
-secret `OPENDOTA_API_KEY` (Settings → Secrets and variables → Actions) and
-the workflow will use it automatically.
+It's cost-aware: it tracks the highest match_id it's already handled in
+`.github/request-parse-state.json`, and only spends a `/request` call on
+a match newer than that. A quiet run (you haven't played since the last
+check) costs exactly one list call, not a re-request of the same matches
+every 20 minutes forever — relevant if you're using a paid API key (see
+**Rate limits**), since blindly re-requesting on every tick would otherwise
+cost the same whether or not anything actually happened.
+
+Trigger it manually (Actions tab → "Request OpenDota parses" → Run
+workflow) with `force_recheck` on to re-check the last `limit` matches
+regardless of state — handy once, right after setting this up.
 
 Two things worth knowing:
 - It only requests a parse — it can't make Valve provide a replay that's
@@ -147,10 +151,22 @@ exported.
 
 ## Rate limits
 
-The free OpenDota tier is 60 requests/minute and 2,000/day — the caching
-described above makes that go a long way for personal use. If you still
-hit limits, get a free key at <https://www.opendota.com/api-keys> and paste
-it into Settings (or `VITE_OPENDOTA_API_KEY`, see below) for a higher cap.
+The free (anonymous) OpenDota tier is what the live dashboard uses by
+default — the caching described above makes that go a long way for normal
+personal browsing. If you hit limits there, paste a key into Settings (or
+set `VITE_OPENDOTA_API_KEY`, see **Deploying**) — OpenDota's keys are a
+paid, metered tier (roughly $0.01 per 100 calls at the time of writing;
+check <https://www.opendota.com/api-keys> for current pricing), not a free
+upgrade.
+
+The GitHub Actions workflows (`request-parse.yml`, `export-matches.yml`)
+use a *separate* repo secret, `OPENDOTA_API_KEY` (Settings → Secrets and
+variables → Actions) — worth setting there specifically because CI runners
+share IP ranges with countless other unrelated jobs, so anonymous calls
+from Actions can get rate-limited by that shared IP regardless of your own
+usage. A metered key ties the limit to you instead. This is separate from
+`VITE_OPENDOTA_API_KEY` (the live site's key, if you set one) on purpose,
+so routine browsing doesn't spend paid-tier calls unless you choose to.
 
 ## Deploying (optional)
 

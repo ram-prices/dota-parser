@@ -1,15 +1,22 @@
 name: Request OpenDota parses
 
-# Periodically asks OpenDota to parse the newest replays for a tracked
-# account, so "in-depth" match data (gold/XP graphs, purchase log, chat,
-# etc.) shows up on the dashboard without manually clicking "Request parse"
-# after every game.
+# Periodically asks OpenDota to parse a tracked account's newest match(es),
+# so "in-depth" match data (gold/XP graphs, purchase log, chat, etc.) shows
+# up on the dashboard without manually clicking "Request parse" after every
+# game.
+#
+# Cost-aware by design: tracks the highest match_id already handled in
+# .github/request-parse-state.json, and only spends a /request call on
+# match_ids newer than that - a quiet run (no new match since last check)
+# costs exactly one list call, not a re-request of the same matches every
+# time. State only gets committed when something actually changed, so this
+# doesn't spam commits either.
 #
 # Also runnable by hand (Actions tab -> this workflow -> Run workflow) with
-# a bigger `limit` to sweep further back through match history - useful
-# once, right after setting this up, to grab whatever replays Valve still
-# happens to have (usually ~8-14 days post-match; older unparsed matches
-# can no longer be parsed no matter what).
+# force_recheck=true to re-request the last `limit` matches regardless of
+# state - useful once, right after setting this up, to grab whatever
+# replays Valve still happens to have (usually ~8-14 days post-match; older
+# unparsed matches can no longer be parsed no matter what).
 
 on:
   schedule:
@@ -20,41 +27,80 @@ on:
         description: "OpenDota account_id (32-bit) to request parses for"
         default: "90031862"
       limit:
-        description: "How many of the most recent matches to request-parse"
-        default: "5"
+        description: "How many of the most recent matches to check"
+        default: "10"
+      force_recheck:
+        description: "Re-request all of them regardless of state, ignoring what's already been handled"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   request-parse:
     runs-on: ubuntu-latest
     steps:
-      - name: Request parses from OpenDota
+      - uses: actions/checkout@v4
+
+      - name: Request parses for new matches only
         env:
           ACCOUNT_ID: ${{ github.event.inputs.account_id || '90031862' }}
-          LIMIT: ${{ github.event.inputs.limit || '5' }}
+          LIMIT: ${{ github.event.inputs.limit || '10' }}
+          FORCE_RECHECK: ${{ github.event.inputs.force_recheck || 'false' }}
           API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
         run: |
+          set -uo pipefail
+          STATE_FILE=".github/request-parse-state.json"
+
           api_key_arg=()
           if [ -n "$API_KEY" ]; then
             api_key_arg=(--data-urlencode "api_key=$API_KEY")
           fi
 
-          echo "Fetching last $LIMIT matches for account $ACCOUNT_ID..."
+          last_seen=0
+          if [ -f "$STATE_FILE" ]; then
+            last_seen=$(jq -r '.last_seen_match_id // 0' "$STATE_FILE")
+          fi
+
+          echo "Fetching last $LIMIT matches for account $ACCOUNT_ID (last seen: $last_seen)..."
           matches=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
             --data-urlencode "limit=$LIMIT" "${api_key_arg[@]}")
 
-          match_ids=$(echo "$matches" | jq -r 'if type=="array" then .[].match_id else empty end')
+          match_ids=$(echo "$matches" | jq -r 'if type=="array" then sort_by(.match_id) | .[].match_id else empty end')
 
           if [ -z "$match_ids" ]; then
             echo "No matches returned - check the account_id and that 'Expose Public Match Data' is on in the Dota 2 client."
-            echo "$matches"
             exit 0
           fi
 
-          count=0
+          new_max=$last_seen
+          requested=0
           for id in $match_ids; do
+            if [ "$id" -gt "$new_max" ]; then new_max=$id; fi
+            if [ "$id" -le "$last_seen" ] && [ "$FORCE_RECHECK" != "true" ]; then
+              continue
+            fi
             echo "Requesting parse for match $id"
             curl -sS -G -X POST "https://api.opendota.com/api/request/$id" "${api_key_arg[@]}" -o /dev/null || true
-            count=$((count + 1))
+            requested=$((requested + 1))
             sleep 1.2
           done
-          echo "Requested parses for $count matches."
+
+          echo "Requested parses for $requested match(es) this run. last_seen_match_id: $last_seen -> $new_max"
+
+          cat > "$STATE_FILE" <<JSON
+          {"account_id": $ACCOUNT_ID, "last_seen_match_id": $new_max, "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+          JSON
+
+      - name: Commit state (only when something changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/request-parse-state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "New match detected, parse requested"
+            git push
+          else
+            echo "No new matches - nothing to commit."
+          fi
