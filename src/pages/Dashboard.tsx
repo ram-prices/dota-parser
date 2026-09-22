@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMatch, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
-import { averageRankLabel, formatDuration, formatRelativeTime, heroIcon, heroName, isRadiant, matchModeLabel } from "../dota";
+import { averageRankLabel, formatDuration, formatRelativeTime, gameModeName, heroIcon, heroName, isRadiant } from "../dota";
 
 export function Dashboard({ accountId }: { accountId: number }) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -62,14 +62,12 @@ export function Dashboard({ accountId }: { accountId: number }) {
       <table className="match-list">
         <thead>
           <tr>
-            <th>Result</th>
             <th>Hero</th>
+            <th>Result</th>
+            <th>KDA</th>
             <th>Mode</th>
             <th>Avg Rank</th>
-            <th>K / D / A</th>
-            <th>GPM / XPM</th>
             <th>Duration</th>
-            <th>When</th>
           </tr>
         </thead>
         <tbody>
@@ -81,25 +79,26 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 className={won ? "row-win" : "row-loss"}
                 style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
               >
+                <td className="hero-icon-cell">
+                  {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt={heroName(m.hero_id)} className="hero-icon" />}
+                </td>
                 <td className="result-cell">
-                  <Link to={`/matches/${m.match_id}`}>{won ? "Win" : "Loss"}</Link>
-                </td>
-                <td className="hero-cell">
-                  {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt="" className="hero-icon" />}
-                  {heroName(m.hero_id)}
-                </td>
-                <td>{matchModeLabel(m.game_mode, m.lobby_type)}</td>
-                <td className="text-dim">
-                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                  <Link to={`/matches/${m.match_id}`}>{won ? "W" : "L"}</Link>
                 </td>
                 <td>
                   {m.kills} / {m.deaths} / {m.assists}
                 </td>
                 <td>
-                  {m.gold_per_min} / {m.xp_per_min}
+                  <div>{m.lobby_type === 7 ? "Ranked" : "Unranked"}</div>
+                  <div className="text-dim small">{gameModeName(m.game_mode)}</div>
                 </td>
-                <td>{formatDuration(m.duration)}</td>
-                <td>{formatRelativeTime(m.start_time)}</td>
+                <td className="text-dim">
+                  {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ?? "-")}
+                </td>
+                <td>
+                  <div>{formatDuration(m.duration)}</div>
+                  <div className="text-dim small">{formatRelativeTime(m.start_time)}</div>
+                </td>
               </tr>
             );
           })}
