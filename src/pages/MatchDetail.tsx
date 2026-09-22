@@ -562,7 +562,7 @@ export function MatchDetail() {
       <div className="match-header">
         <h2 className={data.radiant_win ? "radiant-won" : "dire-won"}>{data.radiant_win ? "Radiant Victory" : "Dire Victory"}</h2>
         <div className="match-meta">
-          {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type)} &middot; match {data.match_id}
+          {formatDuration(data.duration)} &middot; {matchModeLabel(data.game_mode, data.lobby_type, data.start_time)} &middot; match {data.match_id}
           {(() => {
             const avgTier = averageRankTier(data.players.map((p) => p.rank_tier));
             if (avgTier == null) return null;

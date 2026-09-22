@@ -138,7 +138,7 @@ export function Trends({ accountId }: { accountId: number }) {
                   {heroIcon(m.hero_id) && <img src={heroIcon(m.hero_id)!} alt="" className="hero-icon" />}
                   {heroName(m.hero_id)}
                 </td>
-                <td>{matchModeLabel(m.game_mode, m.lobby_type)}</td>
+                <td>{matchModeLabel(m.game_mode, m.lobby_type, m.start_time)}</td>
                 <td>
                   {m.kills} / {m.deaths} / {m.assists}
                 </td>

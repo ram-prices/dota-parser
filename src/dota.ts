@@ -154,32 +154,85 @@ export function lobbyTypeLabel(lobbyType: number | undefined | null): string {
 }
 
 // Valve-run limited-time event modes/modifiers - The Diretide, the
-// generic "Event Game" mode, and seasonal Mutations. Deliberately doesn't
-// include Custom Game (15): that's user-made Arcade content, not a
-// Valve event, even though it happens to share the "not a normal game"
-// flavor. These report ordinary-looking lobby_type values (0, 4, 12 in
-// practice, not some dedicated "event" lobby type), so without this a
-// Diretide match just reads as "Unranked" like any other.
+// generic "Event Game" mode, and seasonal Mutations. These report
+// ordinary-looking lobby_type values (0, 4, 12 in practice, not some
+// dedicated "event" lobby type), so without this a Diretide match just
+// reads as "Unranked" like any other.
 const EVENT_GAME_MODES = new Set([7, 19, 24]);
 
-export function isEventGameMode(gameMode: number | undefined | null): boolean {
-  return gameMode != null && EVENT_GAME_MODES.has(gameMode);
+// Valve also ran several of its seasonal minigames (Frostivus, New Bloom
+// Festival, ...) under the generic Custom Game mode (15), with no field
+// of their own to say which one - only the date tells them apart, and
+// unlike the modes above, plain Custom Game is normally NOT a Valve event
+// (it's user-made Arcade content) except in these specific dated windows.
+// Only covers windows actually verified against real match dates from
+// this account; any other game_mode-15 match (a real user Arcade game, or
+// a seasonal event we haven't dated yet) is left as ordinary Custom Game.
+const SEASONAL_CUSTOM_GAMES: { key: string; label: string; start: number; end: number }[] = [
+  { key: "frostivus-2013", label: "Frostivus 2013", start: Date.UTC(2013, 11, 1) / 1000, end: Date.UTC(2014, 0, 1) / 1000 },
+  { key: "new-bloom-2014", label: "New Bloom 2014", start: Date.UTC(2014, 0, 25) / 1000, end: Date.UTC(2014, 2, 1) / 1000 },
+];
+
+function seasonalCustomGame(gameMode: number | undefined | null, startTime: number | undefined | null) {
+  if (gameMode !== 15 || startTime == null) return null;
+  return SEASONAL_CUSTOM_GAMES.find((e) => startTime >= e.start && startTime < e.end) ?? null;
+}
+
+// A single match's "effective" game mode - the raw game_mode number,
+// except a dated seasonal Custom Game match (Frostivus, New Bloom, ...)
+// gets its own distinct key instead of being lumped into generic Custom
+// Game (15) alongside every other Arcade game ever played. Number keys
+// are real game_mode values; string keys are synthetic, only produced by
+// seasonalCustomGame() above.
+export type GameModeKey = number | string;
+
+export function effectiveGameModeKey(gameMode: number | undefined | null, startTime: number | undefined | null): GameModeKey {
+  return seasonalCustomGame(gameMode, startTime)?.key ?? (gameMode ?? 0);
+}
+
+export function gameModeKeyLabel(key: GameModeKey): string {
+  if (typeof key === "string") return SEASONAL_CUSTOM_GAMES.find((e) => e.key === key)?.label ?? key;
+  return gameModeName(key);
+}
+
+// True for anything that isn't a normal matchmade game - Diretide,
+// Mutation, and the generic "Event Game" mode by game_mode alone, plus
+// the seasonal minigames above (a string key only ever means one of
+// those, so it's always an event).
+export function isEventGameModeKey(key: GameModeKey): boolean {
+  return typeof key === "string" || EVENT_GAME_MODES.has(key);
+}
+
+// The name shown for a single match's game mode - same as gameModeName(),
+// except a dated seasonal Custom Game match shows its actual event name
+// instead of the generic "Custom Game" bucket.
+export function matchGameModeLabel(gameMode: number | undefined | null, startTime: number | undefined | null): string {
+  return gameModeKeyLabel(effectiveGameModeKey(gameMode, startTime));
 }
 
 // What the Matches tab's "Mode" column shows - lobby_type-derived, except
-// event/modifier games always read "Event" regardless of their (often
-// misleading) lobby_type.
-export function matchLobbyLabel(lobbyType: number | undefined | null, gameMode: number | undefined | null): string {
-  if (isEventGameMode(gameMode)) return "Event";
+// event/modifier games (including dated seasonal Custom Game matches)
+// always read "Event" regardless of their (often misleading) lobby_type.
+export function matchLobbyLabel(
+  lobbyType: number | undefined | null,
+  gameMode: number | undefined | null,
+  startTime: number | undefined | null,
+): string {
+  if (isEventGameModeKey(effectiveGameModeKey(gameMode, startTime))) return "Event";
   return lobbyTypeLabel(lobbyType);
 }
 
 // Combines lobby_type with game_mode for an accurate label (e.g. "Ranked
 // All Pick" vs plain "All Pick" vs "Bot Match All Pick") instead of
 // assuming a mode.
-export function matchModeLabel(mode: number | undefined | null, lobbyType: number | undefined | null): string {
-  const base = gameModeName(mode);
-  if (isEventGameMode(mode)) return base;
+export function matchModeLabel(
+  mode: number | undefined | null,
+  lobbyType: number | undefined | null,
+  startTime?: number | undefined | null,
+): string {
+  const key = effectiveGameModeKey(mode, startTime);
+  const base = gameModeKeyLabel(key);
+  if (isEventGameModeKey(key)) return base;
   if (lobbyType === 7) return `Ranked ${base}`;
   if (lobbyType != null && lobbyType !== 0) return `${lobbyTypeLabel(lobbyType)} ${base}`;
   return base;

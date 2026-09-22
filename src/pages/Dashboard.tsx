@@ -4,20 +4,23 @@ import { getMatch, getMatchIndexForStats, getMatches, getProfile, getWinLoss, Op
 import type { MatchSummary, PlayerProfile, WinLoss } from "../types";
 import {
   averageRankTier,
+  effectiveGameModeKey,
   formatDuration,
   formatRelativeTime,
-  gameModeName,
+  gameModeKeyLabel,
   heroIcon,
   heroName,
-  isEventGameMode,
+  isEventGameModeKey,
   isRadiant,
   laneOutcome,
   laneOutcomeLabel,
+  matchGameModeLabel,
   matchLobbyLabel,
   positionLabel,
   positionShort,
   rankTierColor,
   rankTierLabel,
+  type GameModeKey,
   type LaneOutcome,
 } from "../dota";
 
@@ -33,7 +36,7 @@ type TimeRangeFilter = "all" | "7d" | "30d" | "90d" | "180d" | "365d";
 // not Unranked" is a perfectly normal thing to want. Ranked/Unranked/Bot
 // Match are lobby_type values; "event" is special-cased since event/
 // modifier games (Diretide, Mutation, ...) don't have a lobby_type of
-// their own - see isEventGameMode() in dota.ts.
+// their own - see isEventGameModeKey() in dota.ts.
 type ModeFilterKey = number | "event";
 const MODE_OPTIONS: { value: ModeFilterKey; label: string }[] = [
   { value: 7, label: "Ranked" },
@@ -78,7 +81,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
         .map((token): ModeFilterKey => (token === "event" ? "event" : Number(token)))
         .filter((v) => MODE_OPTIONS.some((o) => o.value === v))
     : [];
-  const initialGameMode = Math.floor(Number(searchParams.get("gm"))) || 0;
+  // Game Mode values are usually numeric (a raw game_mode), but a dated
+  // seasonal Custom Game match (Frostivus, New Bloom, ...) uses a
+  // synthetic string key instead - see effectiveGameModeKey() in dota.ts.
+  const rawGameModeParam = searchParams.get("gm");
+  const initialGameMode: GameModeKey = rawGameModeParam
+    ? Number.isNaN(Number(rawGameModeParam))
+      ? rawGameModeParam
+      : Math.floor(Number(rawGameModeParam))
+    : 0;
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
   const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
@@ -97,7 +108,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [heroFilter, setHeroFilter] = useState(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
   const [modeFilter, setModeFilter] = useState<ModeFilterKey[]>(initialMode);
-  const [gameModeFilter, setGameModeFilter] = useState(initialGameMode);
+  const [gameModeFilter, setGameModeFilter] = useState<GameModeKey>(initialGameMode);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
@@ -112,7 +123,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     hero?: number;
     result?: ResultFilter;
     mode?: ModeFilterKey[];
-    gameMode?: number;
+    gameMode?: GameModeKey;
     faction?: FactionFilter;
     party?: PartyFilter;
     time?: TimeRangeFilter;
@@ -208,9 +219,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // category of game you're looking at.
   const gameModeOptions = useMemo(() => {
     if (!allMatches) return [];
-    const modes = Array.from(new Set(allMatches.map((m) => m.game_mode)));
-    const visible = modes.filter((m) => (isEventGameMode(m) ? isEventModeActive : isNormalModeActive));
-    return visible.sort((a, b) => gameModeName(a).localeCompare(gameModeName(b)));
+    const keys = new Set<GameModeKey>();
+    for (const m of allMatches) keys.add(effectiveGameModeKey(m.game_mode, m.start_time));
+    const visible = Array.from(keys).filter((k) => (isEventGameModeKey(k) ? isEventModeActive : isNormalModeActive));
+    return visible.sort((a, b) => gameModeKeyLabel(a).localeCompare(gameModeKeyLabel(b)));
   }, [allMatches, isEventModeActive, isNormalModeActive]);
 
   const filtered = useMemo(() => {
@@ -224,10 +236,12 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (resultFilter === "loss" && won) return false;
       }
       if (modeFilter.length > 0) {
-        const matchesMode = modeFilter.some((key) => (key === "event" ? isEventGameMode(m.game_mode) : m.lobby_type === key));
+        const matchesMode = modeFilter.some((key) =>
+          key === "event" ? isEventGameModeKey(effectiveGameModeKey(m.game_mode, m.start_time)) : m.lobby_type === key,
+        );
         if (!matchesMode) return false;
       }
-      if (gameModeFilter && m.game_mode !== gameModeFilter) return false;
+      if (gameModeFilter && effectiveGameModeKey(m.game_mode, m.start_time) !== gameModeFilter) return false;
       if (factionFilter !== "all") {
         const radiant = isRadiant(m.player_slot);
         if (factionFilter === "radiant" && !radiant) return false;
@@ -355,7 +369,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   // Ranked/Unranked/Bot Match) while the Game Mode filter
                   // points at a mode from that now-hidden category would
                   // leave it stuck on a hidden option - reset it to "All".
-                  const gameModeIsEvent = isEventGameMode(gameModeFilter);
+                  const gameModeIsEvent = isEventGameModeKey(gameModeFilter);
                   const categoryNowEmpty = gameModeIsEvent ? !next.includes("event") : !next.some((v) => v !== "event");
                   const clearGameMode = Boolean(gameModeFilter) && categoryNowEmpty;
                   updateParams(clearGameMode ? { mode: next, gameMode: 0, page: 1 } : { mode: next, page: 1 });
@@ -365,11 +379,18 @@ export function Dashboard({ accountId }: { accountId: number }) {
               </button>
             ))}
           </div>
-          <select value={gameModeFilter} onChange={(e) => updateParams({ gameMode: Number(e.target.value), page: 1 })}>
+          <select
+            value={gameModeFilter}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const value: GameModeKey = Number.isNaN(Number(raw)) ? raw : Number(raw);
+              updateParams({ gameMode: value, page: 1 });
+            }}
+          >
             <option value={0}>All Game Modes</option>
-            {gameModeOptions.map((mode) => (
-              <option key={mode} value={mode}>
-                {gameModeName(mode)}
+            {gameModeOptions.map((key) => (
+              <option key={key} value={key}>
+                {gameModeKeyLabel(key)}
               </option>
             ))}
           </select>
@@ -452,8 +473,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   </td>
                   <td className="match-row-mode-cell">
                     <div className="match-row-stacked">
-                      <span>{matchLobbyLabel(m.lobby_type, m.game_mode)}</span>
-                      <span className="text-dim small">{gameModeName(m.game_mode)}</span>
+                      <span>{matchLobbyLabel(m.lobby_type, m.game_mode, m.start_time)}</span>
+                      <span className="text-dim small">{matchGameModeLabel(m.game_mode, m.start_time)}</span>
                       <span className="small" style={{ color: rankTierColor(ranks[m.match_id]) ?? "var(--text-dim)" }}>
                         {ranks[m.match_id] === undefined ? "…" : (ranks[m.match_id] ? rankTierLabel(ranks[m.match_id]) : "-")}
                       </span>
