@@ -345,20 +345,18 @@ table {
   border-collapse: collapse;
   background: var(--md-surface-container);
   border-radius: var(--shape-lg);
-  overflow: hidden;
   margin-bottom: 20px;
   border: 1px solid var(--md-outline-variant);
   box-shadow: var(--elevation-1);
-}
-/* Data tables (scoreboard, match lists, logs) are wider than a phone
-   screen - contain the scroll to the table itself rather than letting it
-   force the whole page wider. */
-@media (max-width: 640px) {
-  table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  /* Wide data tables (scoreboard, match lists, logs) can be wider than
+     their container at any viewport size, not just on phones - always
+     contain the scroll to the table itself rather than either forcing the
+     whole page wider or (with html/body's overflow-x: hidden safety net)
+     silently clipping columns off the edge. */
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 th,
 td {
@@ -476,6 +474,30 @@ tbody tr:last-child td {
 }
 .scoreboard.team-dire thead th:first-of-type {
   color: var(--dire);
+}
+
+/* Freeze the hero/player identity columns while scrolling through the
+   rest of the stat columns - the table can be 14+ columns wide, so
+   without this you lose track of which row is which hero as soon as you
+   scroll. */
+.scoreboard thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--md-surface-container-high);
+}
+.scoreboard tbody .hero-icon-cell,
+.scoreboard tbody .hero-name-cell {
+  position: sticky;
+  z-index: 2;
+  background: var(--md-surface-container);
+}
+.scoreboard tbody .hero-icon-cell {
+  left: 0;
+}
+.scoreboard tbody .hero-name-cell {
+  left: 34px;
+  box-shadow: 6px 0 8px -6px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================================
