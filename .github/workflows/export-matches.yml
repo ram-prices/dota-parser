@@ -28,6 +28,12 @@ permissions:
 jobs:
   export:
     runs-on: ubuntu-latest
+    # Safety net on top of the per-request curl timeouts below: a run
+    # should never take anywhere near this long, so if it does, something's
+    # stuck (this bit us once - a hung curl call with no timeout sat
+    # "in_progress" for the better part of an hour without committing
+    # anything or even hitting a rate limit).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +53,7 @@ jobs:
           fi
 
           echo "Fetching full match list for account $ACCOUNT_ID..."
-          matches_json=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+          matches_json=$(curl -sS -G --connect-timeout 10 --max-time 60 "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
             --data-urlencode "significant=0" \
             --data-urlencode "limit=20000" \
             "${api_key_arg[@]}")
@@ -82,7 +88,7 @@ jobs:
               break
             fi
 
-            status=$(curl -sS -G -o /tmp/match.json -w "%{http_code}" "https://api.opendota.com/api/matches/$id" "${api_key_arg[@]}")
+            status=$(curl -sS -G --connect-timeout 10 --max-time 30 -o /tmp/match.json -w "%{http_code}" "https://api.opendota.com/api/matches/$id" "${api_key_arg[@]}" || echo "000")
             if [ "$status" = "429" ]; then
               echo "Hit the rate limit at match $id - stopping this run early."
               rate_limited=true

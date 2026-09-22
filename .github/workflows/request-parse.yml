@@ -47,6 +47,7 @@ permissions:
 jobs:
   request-parse:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +69,7 @@ jobs:
           fi
 
           echo "Fetching last $LIMIT matches for account $ACCOUNT_ID (last seen: $last_seen)..."
-          matches=$(curl -sS -G "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
+          matches=$(curl -sS -G --connect-timeout 10 --max-time 30 "https://api.opendota.com/api/players/$ACCOUNT_ID/matches" \
             --data-urlencode "limit=$LIMIT" "${api_key_arg[@]}")
 
           match_ids=$(echo "$matches" | jq -r 'if type=="array" then sort_by(.match_id) | .[].match_id else empty end')
@@ -86,7 +87,7 @@ jobs:
               continue
             fi
             echo "Requesting parse for match $id"
-            curl -sS -G -X POST "https://api.opendota.com/api/request/$id" "${api_key_arg[@]}" -o /dev/null || true
+            curl -sS -G --connect-timeout 10 --max-time 30 -X POST "https://api.opendota.com/api/request/$id" "${api_key_arg[@]}" -o /dev/null || true
             requested=$((requested + 1))
             sleep 1.2
           done
