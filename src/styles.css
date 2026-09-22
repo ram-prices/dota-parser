@@ -79,6 +79,14 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  /* Safety net: individual elements (tables, the tab bar, the nav) manage
+     their own contained horizontal scroll where content is genuinely wider
+     than a phone screen; the page itself should never need to pan sideways. */
+  overflow-x: hidden;
+  max-width: 100%;
+}
 html {
   scrollbar-color: var(--md-outline) transparent;
 }
@@ -167,11 +175,19 @@ button {
 
 .app-header nav {
   display: flex;
+  flex-wrap: nowrap;
   gap: 2px;
   background: var(--md-surface-container-low);
   padding: 4px;
   border-radius: var(--shape-full);
   border: 1px solid var(--md-outline-variant);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.app-header nav::-webkit-scrollbar {
+  display: none;
 }
 .app-header nav a {
   position: relative;
@@ -180,6 +196,8 @@ button {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: var(--shape-full);
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     color var(--duration-short) var(--motion-standard),
     background var(--duration-medium) var(--motion-spring),
@@ -201,6 +219,14 @@ button {
   max-width: 1100px;
   margin: 0 auto;
   padding: 28px 24px 60px;
+}
+@media (max-width: 640px) {
+  .app-header {
+    padding: 12px 16px;
+  }
+  .app-main {
+    padding: 20px 16px 48px;
+  }
 }
 
 /* Page entrance motion - App.tsx remounts this wrapper (keyed on the
@@ -323,6 +349,16 @@ table {
   margin-bottom: 20px;
   border: 1px solid var(--md-outline-variant);
   box-shadow: var(--elevation-1);
+}
+/* Data tables (scoreboard, match lists, logs) are wider than a phone
+   screen - contain the scroll to the table itself rather than letting it
+   force the whole page wider. */
+@media (max-width: 640px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 th,
 td {
@@ -830,7 +866,7 @@ tbody tr:last-child td {
 .tab-bar {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   background: var(--md-surface-container-low);
   border: 1px solid var(--md-outline-variant);
@@ -838,6 +874,11 @@ tbody tr:last-child td {
   border-radius: var(--shape-full);
   margin-bottom: 20px;
   overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-bar::-webkit-scrollbar {
+  display: none;
 }
 .tab-indicator {
   position: absolute;
@@ -863,6 +904,7 @@ tbody tr:last-child td {
   cursor: pointer;
   border-radius: var(--shape-full);
   white-space: nowrap;
+  flex-shrink: 0;
   transition:
     color var(--duration-medium) var(--motion-standard),
     transform var(--duration-short) var(--motion-spring);
@@ -936,6 +978,15 @@ tbody tr:last-child td {
   flex: 0 0 220px;
   color: var(--text-dim);
   word-break: break-word;
+}
+@media (max-width: 640px) {
+  .pretty-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pretty-row dt {
+    flex: none;
+  }
 }
 .pretty-row dd {
   margin: 0;
