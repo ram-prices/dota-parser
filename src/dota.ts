@@ -163,14 +163,28 @@ export function rankTierLabel(tier: number | undefined | null): string {
   return star > 0 ? `${name} ${star}` : name;
 }
 
-// Average medal across a team/match, for an at-a-glance "skill level of
-// this game" summary. Averages just the medal (not the star), since
-// averaging stars across different medals isn't meaningful.
+// Average rank across a team/match, for an at-a-glance "skill level of
+// this game" summary, e.g. "Ancient 5" or "Divine 2" - not just the medal.
+// Can't just average the raw tier numbers: medal/star isn't a continuous
+// scale (Ancient 5 is 65, the next real rank is Divine 1 at 71 - there's
+// no 66-70), so naive averaging can land on a star that doesn't exist.
+// Instead each rank becomes a continuous 0-based score (medal 0-7, star
+// 0-4), gets averaged on that scale, then decoded back.
 export function averageRankLabel(tiers: Array<number | null | undefined>): string | null {
-  const medals = tiers.filter((t): t is number => Boolean(t)).map((t) => Math.floor(t / 10));
-  if (medals.length === 0) return null;
-  const avg = Math.round(medals.reduce((sum, m) => sum + m, 0) / medals.length);
-  return MEDALS[avg] ?? null;
+  const scores = tiers
+    .filter((t): t is number => Boolean(t))
+    .filter((t) => Math.floor(t / 10) >= 1 && Math.floor(t / 10) <= 8)
+    .map((t) => {
+      const medal0 = Math.floor(t / 10) - 1;
+      const star0 = medal0 === 7 ? 0 : Math.max(0, (t % 10) - 1); // Immortal has no stars
+      return medal0 * 5 + star0;
+    });
+  if (scores.length === 0) return null;
+
+  const avgScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
+  const medal = Math.floor(avgScore / 5) + 1;
+  const star = (avgScore % 5) + 1;
+  return rankTierLabel(medal * 10 + star);
 }
 
 const OBJECTIVE_LABELS: Record<string, string> = {
