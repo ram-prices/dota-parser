@@ -103,8 +103,11 @@ const GAME_MODES: Record<number, string> = {
   3: "Random Draft",
   4: "Single Draft",
   5: "All Random",
+  7: "The Diretide",
+  15: "Custom Game",
   16: "Captains Draft",
   18: "Ability Draft",
+  19: "Event Game",
   20: "All Random Deathmatch",
   21: "1v1 Mid",
   // Patch 7.00 unified ranked/unranked queueing under this one game_mode -
@@ -112,6 +115,7 @@ const GAME_MODES: Record<number, string> = {
   // not part of game_mode. Use matchModeLabel() to get "Ranked" correct.
   22: "All Pick",
   23: "Turbo",
+  24: "Mutation",
 };
 
 export function gameModeName(mode: number | undefined | null): string {
