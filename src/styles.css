@@ -425,7 +425,16 @@ tbody tr:last-child td {
   box-shadow: var(--elevation-1);
 }
 .hero-icon-cell {
-  width: 34px;
+  /* Pinned via width = min-width = max-width so the rendered size is
+     exact and predictable - a plain `width` is just a hint under normal
+     table layout and browsers will happily render it wider to fit
+     padding, which is what was throwing off the sticky column next to
+     it (its `left` offset assumed a width that wasn't actually true). */
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  padding-left: 10px;
+  padding-right: 6px;
 }
 .item-row {
   display: flex;
@@ -496,7 +505,8 @@ tbody tr:last-child td {
   left: 0;
 }
 .scoreboard tbody .hero-name-cell {
-  left: 34px;
+  left: 42px;
+  padding-left: 6px;
   box-shadow: 6px 0 8px -6px rgba(0, 0, 0, 0.5);
 }
 
