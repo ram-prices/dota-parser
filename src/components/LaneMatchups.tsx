@@ -19,53 +19,59 @@ function statAt10(player: MatchPlayer | undefined, field: "networth_t" | "xp_t" 
   return null;
 }
 
-const STAT_LABELS: Record<"networth_t" | "xp_t" | "lh_t" | "dn_t", string> = {
-  networth_t: "Net worth",
-  xp_t: "Experience",
-  lh_t: "Last hits",
-  dn_t: "Denies",
+const STAT_FIELDS = ["networth_t", "xp_t", "lh_t", "dn_t"] as const;
+const STAT_SHORT_LABELS: Record<(typeof STAT_FIELDS)[number], string> = {
+  networth_t: "NW",
+  xp_t: "XP",
+  lh_t: "LH",
+  dn_t: "DN",
 };
 
-// Every stat on its own line - no column width to run out of, so this
-// never needs horizontal scrolling at any screen size.
-function PlayerStatCard({ player }: { player: MatchPlayer }) {
+function HeroHeader({ player }: { player: MatchPlayer | undefined }) {
+  if (!player) return <th className="lane-h2h-table-hero">-</th>;
   return (
-    <div className="lane-h2h-card">
+    <th className="lane-h2h-table-hero">
       <div className="hero-cell">
         {heroIcon(player.hero_id) && <img src={heroIcon(player.hero_id)!} alt="" className="hero-icon" />}
         {heroName(player.hero_id)}
       </div>
-      <div className="lane-h2h-stats">
-        {(["networth_t", "xp_t", "lh_t", "dn_t"] as const).map((field) => (
-          <div className="lane-h2h-stat" key={field}>
-            <span className="text-dim">{STAT_LABELS[field]}</span>
-            <span>{statAt10(player, field)?.toLocaleString() ?? "-"}</span>
-          </div>
+    </th>
+  );
+}
+
+// A 3-column table per lane pairing - value, stat label, value - so it
+// stays narrow enough to never need horizontal scrolling regardless of
+// screen size, with one row per stat instead of one column per stat.
+function PairTable({ radiant, dire }: { radiant: MatchPlayer | undefined; dire: MatchPlayer | undefined }) {
+  return (
+    <table className="lane-h2h-table">
+      <thead>
+        <tr>
+          <HeroHeader player={radiant} />
+          <th />
+          <HeroHeader player={dire} />
+        </tr>
+      </thead>
+      <tbody>
+        {STAT_FIELDS.map((field) => (
+          <tr key={field}>
+            <td className="lane-h2h-table-value">{statAt10(radiant, field)?.toLocaleString() ?? "-"}</td>
+            <td className="lane-h2h-table-label">{STAT_SHORT_LABELS[field]}</td>
+            <td className="lane-h2h-table-value">{statAt10(dire, field)?.toLocaleString() ?? "-"}</td>
+          </tr>
         ))}
-      </div>
-    </div>
+      </tbody>
+    </table>
   );
 }
 
 function LaneHeadToHead({ radiantPlayers, direPlayers }: { radiantPlayers: MatchPlayer[]; direPlayers: MatchPlayer[] }) {
+  const rows = Math.max(radiantPlayers.length, direPlayers.length);
   return (
     <div className="lane-h2h">
-      {radiantPlayers.length > 0 && (
-        <div className="lane-h2h-team">
-          <div className="lane-h2h-team-label text-radiant">Radiant</div>
-          {radiantPlayers.map((p) => (
-            <PlayerStatCard key={p.player_slot} player={p} />
-          ))}
-        </div>
-      )}
-      {direPlayers.length > 0 && (
-        <div className="lane-h2h-team">
-          <div className="lane-h2h-team-label text-dire">Dire</div>
-          {direPlayers.map((p) => (
-            <PlayerStatCard key={p.player_slot} player={p} />
-          ))}
-        </div>
-      )}
+      {Array.from({ length: rows }, (_, i) => (
+        <PairTable key={i} radiant={radiantPlayers[i]} dire={direPlayers[i]} />
+      ))}
     </div>
   );
 }

@@ -968,38 +968,34 @@ tbody tr:last-child td {
 .text-dire {
   color: var(--dire);
 }
-.lane-h2h-team {
-  margin-bottom: 12px;
-}
-.lane-h2h-team:last-child {
-  margin-bottom: 0;
-}
-.lane-h2h-team-label {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 8px;
-}
-.lane-h2h-card {
-  background: var(--md-surface-container-high);
-  border-radius: var(--shape-md);
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-.lane-h2h-card:last-child {
-  margin-bottom: 0;
-}
-.lane-h2h-stats {
-  margin-top: 8px;
+.lane-h2h {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
 }
-.lane-h2h-stat {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
+.lane-h2h-table {
+  margin-bottom: 0;
+}
+.lane-h2h-table th {
+  background: var(--md-surface-container-high);
+}
+.lane-h2h-table-hero {
+  text-align: center;
+}
+.lane-h2h-table-hero .hero-cell {
+  justify-content: center;
+}
+.lane-h2h-table-value {
+  text-align: center;
+  font-weight: 700;
+}
+.lane-h2h-table-label {
+  width: 1%;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--md-surface-container-high);
 }
 .lane-compare {
   margin-top: 14px;
