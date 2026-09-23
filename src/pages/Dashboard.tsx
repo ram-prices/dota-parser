@@ -117,6 +117,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
         .split(",")
         .map((token): GameModeKey => (Number.isNaN(Number(token)) ? token : Math.floor(Number(token))))
     : [];
+  // Off (Turbo hidden) unless explicitly turned on - Turbo has its own
+  // separate hero stats in Dota itself, so it's excluded from the default
+  // view same as Bot Match/Event are (via the Mode chips).
+  const initialTurbo = searchParams.get("turbo") === "1";
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
   const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
@@ -144,6 +148,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
   const [modeFilter, setModeFilter] = useState<ModeFilterKey[]>(initialMode);
   const [gameModeFilter, setGameModeFilter] = useState<GameModeKey[]>(initialGameMode);
+  const [turboFilter, setTurboFilter] = useState(initialTurbo);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
@@ -162,6 +167,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     result?: ResultFilter;
     mode?: ModeFilterKey[];
     gameMode?: GameModeKey[];
+    turbo?: boolean;
     faction?: FactionFilter;
     party?: PartyFilter;
     time?: TimeRangeFilter;
@@ -175,6 +181,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
       result: resultFilter,
       mode: modeFilter,
       gameMode: gameModeFilter,
+      turbo: turboFilter,
       faction: factionFilter,
       party: partyFilter,
       time: timeRangeFilter,
@@ -199,6 +206,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("mode", merged.mode.join(","));
         if (merged.gameMode.length === 0) params.delete("gm");
         else params.set("gm", merged.gameMode.join(","));
+        if (!merged.turbo) params.delete("turbo");
+        else params.set("turbo", "1");
         if (merged.faction === "all") params.delete("faction");
         else params.set("faction", merged.faction);
         if (merged.party === "all") params.delete("party");
@@ -220,6 +229,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     if (next.result !== undefined) setResultFilter(next.result);
     if (next.mode !== undefined) setModeFilter(next.mode);
     if (next.gameMode !== undefined) setGameModeFilter(next.gameMode);
+    if (next.turbo !== undefined) setTurboFilter(next.turbo);
     if (next.faction !== undefined) setFactionFilter(next.faction);
     if (next.party !== undefined) setPartyFilter(next.party);
     if (next.time !== undefined) setTimeRangeFilter(next.time);
@@ -345,7 +355,12 @@ export function Dashboard({ accountId }: { accountId: number }) {
         );
         if (!matchesMode) return false;
       }
-      if (gameModeFilter.length > 0 && !gameModeFilter.includes(effectiveGameModeKey(m.game_mode, m.start_time))) return false;
+      const effectiveMode = effectiveGameModeKey(m.game_mode, m.start_time);
+      if (gameModeFilter.length > 0 && !gameModeFilter.includes(effectiveMode)) return false;
+      // Turbo hidden by default (it has its own separate hero stats in
+      // Dota itself) - explicitly picking it in the Game Mode filter still
+      // shows it regardless of this toggle.
+      if (!turboFilter && effectiveMode === 23 && !gameModeFilter.includes(23)) return false;
       if (factionFilter !== "all") {
         const radiant = isRadiant(m.player_slot);
         if (factionFilter === "radiant" && !radiant) return false;
@@ -380,6 +395,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     resultFilter,
     modeFilter,
     gameModeFilter,
+    turboFilter,
     factionFilter,
     partyFilter,
     timeRangeFilter,
@@ -447,6 +463,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
       resultFilter !== "all" ||
       modeFilter.length > 0 ||
       gameModeFilter.length > 0 ||
+      !turboFilter ||
       factionFilter !== "all" ||
       partyFilter !== "all" ||
       timeRangeFilter !== "all" ||
@@ -454,8 +471,14 @@ export function Dashboard({ accountId }: { accountId: number }) {
       enemyHeroFilter.length > 0 ||
       patchFilter,
   );
-  const filteredWins = filtered?.filter(matchWon).length ?? 0;
-  const displayWl = filtered ? { win: filteredWins, lose: filtered.length - filteredWins } : wl;
+  // A personally-abandoned match doesn't reflect a real win or loss (see
+  // isAbandoned() in dota.ts), so it's pulled out of both before figuring
+  // win rate, rather than counted toward either - it's its own bucket,
+  // shown as its own stat tile below instead.
+  const filteredAbandonedCount = filtered?.filter((m) => isAbandoned(m.leaver_status)).length ?? 0;
+  const filteredScored = filtered?.filter((m) => !isAbandoned(m.leaver_status)) ?? null;
+  const filteredWins = filteredScored?.filter(matchWon).length ?? 0;
+  const displayWl = filteredScored ? { win: filteredWins, lose: filteredScored.length - filteredWins } : wl;
   const winRate = displayWl.win + displayWl.lose > 0 ? Math.round((100 * displayWl.win) / (displayWl.win + displayWl.lose)) : 0;
   const hasNext = totalPages != null && clampedPage < totalPages;
   const hasPrev = clampedPage > 1;
@@ -486,9 +509,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
           <div className="profile-stat-label">Win Rate</div>
         </div>
         <div className="profile-stat">
-          <div className="profile-stat-value">{displayWl.win + displayWl.lose}</div>
+          <div className="profile-stat-value">{filtered ? filtered.length : displayWl.win + displayWl.lose}</div>
           <div className="profile-stat-label">{isFiltered ? "Filtered Matches" : "Total Matches"}</div>
         </div>
+        {filtered && (
+          <div className="profile-stat">
+            <div className="profile-stat-value text-dim">{filteredAbandonedCount}</div>
+            <div className="profile-stat-label">Abandoned</div>
+          </div>
+        )}
       </div>
 
       {allMatches && (
@@ -544,6 +573,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
                 {opt.label}
               </button>
             ))}
+            <button
+              type="button"
+              className={`filter-chip ${turboFilter ? "filter-chip-active" : ""}`}
+              onClick={() => updateParams({ turbo: !turboFilter, page: 1 })}
+            >
+              Turbo
+            </button>
           </div>
           <MultiSelect
             label="All Game Modes"
