@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { getMatch, getMatchExtrasIndex, getMatchIndexForStats, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchExtras, MatchSummary, PlayerProfile, WinLoss } from "../types";
 import { HeroMultiSelect } from "../components/HeroMultiSelect";
+import { MultiSelect } from "../components/MultiSelect";
 import {
   effectiveGameModeKey,
   formatDuration,
@@ -111,11 +112,11 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // seasonal Custom Game match (Frostivus, New Bloom, ...) uses a
   // synthetic string key instead - see effectiveGameModeKey() in dota.ts.
   const rawGameModeParam = searchParams.get("gm");
-  const initialGameMode: GameModeKey = rawGameModeParam
-    ? Number.isNaN(Number(rawGameModeParam))
-      ? rawGameModeParam
-      : Math.floor(Number(rawGameModeParam))
-    : 0;
+  const initialGameMode: GameModeKey[] = rawGameModeParam
+    ? rawGameModeParam
+        .split(",")
+        .map((token): GameModeKey => (Number.isNaN(Number(token)) ? token : Math.floor(Number(token))))
+    : [];
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
   const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
@@ -142,7 +143,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [heroFilter, setHeroFilter] = useState<number[]>(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
   const [modeFilter, setModeFilter] = useState<ModeFilterKey[]>(initialMode);
-  const [gameModeFilter, setGameModeFilter] = useState<GameModeKey>(initialGameMode);
+  const [gameModeFilter, setGameModeFilter] = useState<GameModeKey[]>(initialGameMode);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
@@ -160,7 +161,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     hero?: number[];
     result?: ResultFilter;
     mode?: ModeFilterKey[];
-    gameMode?: GameModeKey;
+    gameMode?: GameModeKey[];
     faction?: FactionFilter;
     party?: PartyFilter;
     time?: TimeRangeFilter;
@@ -196,8 +197,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
         // initialMode above).
         if (merged.mode.length === 0) params.set("mode", "");
         else params.set("mode", merged.mode.join(","));
-        if (!merged.gameMode) params.delete("gm");
-        else params.set("gm", String(merged.gameMode));
+        if (merged.gameMode.length === 0) params.delete("gm");
+        else params.set("gm", merged.gameMode.join(","));
         if (merged.faction === "all") params.delete("faction");
         else params.set("faction", merged.faction);
         if (merged.party === "all") params.delete("party");
@@ -344,7 +345,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
         );
         if (!matchesMode) return false;
       }
-      if (gameModeFilter && effectiveGameModeKey(m.game_mode, m.start_time) !== gameModeFilter) return false;
+      if (gameModeFilter.length > 0 && !gameModeFilter.includes(effectiveGameModeKey(m.game_mode, m.start_time))) return false;
       if (factionFilter !== "all") {
         const radiant = isRadiant(m.player_slot);
         if (factionFilter === "radiant" && !radiant) return false;
@@ -445,7 +446,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     heroFilter.length > 0 ||
       resultFilter !== "all" ||
       modeFilter.length > 0 ||
-      gameModeFilter ||
+      gameModeFilter.length > 0 ||
       factionFilter !== "all" ||
       partyFilter !== "all" ||
       timeRangeFilter !== "all" ||
@@ -531,33 +532,25 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   const next = isActive ? modeFilter.filter((v) => v !== opt.value) : [...modeFilter, opt.value];
                   // Toggling off the last chip in a category (Event, or
                   // Ranked/Unranked/Bot Match) while the Game Mode filter
-                  // points at a mode from that now-hidden category would
-                  // leave it stuck on a hidden option - reset it to "All".
-                  const gameModeIsEvent = isEventGameModeKey(gameModeFilter);
-                  const categoryNowEmpty = gameModeIsEvent ? !next.includes("event") : !next.some((v) => v !== "event");
-                  const clearGameMode = Boolean(gameModeFilter) && categoryNowEmpty;
-                  updateParams(clearGameMode ? { mode: next, gameMode: 0, page: 1 } : { mode: next, page: 1 });
+                  // has a selection from that now-hidden category would
+                  // leave it stuck on a hidden option - drop just those.
+                  const eventStillVisible = next.includes("event");
+                  const normalStillVisible = next.some((v) => v !== "event");
+                  const nextGameMode = gameModeFilter.filter((gm) => (isEventGameModeKey(gm) ? eventStillVisible : normalStillVisible));
+                  const gameModeChanged = nextGameMode.length !== gameModeFilter.length;
+                  updateParams(gameModeChanged ? { mode: next, gameMode: nextGameMode, page: 1 } : { mode: next, page: 1 });
                 }}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <select
-            value={gameModeFilter}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const value: GameModeKey = Number.isNaN(Number(raw)) ? raw : Number(raw);
-              updateParams({ gameMode: value, page: 1 });
-            }}
-          >
-            <option value={0}>All Game Modes</option>
-            {gameModeOptions.map((key) => (
-              <option key={key} value={key}>
-                {gameModeKeyLabel(key)}
-              </option>
-            ))}
-          </select>
+          <MultiSelect
+            label="All Game Modes"
+            options={gameModeOptions.map((key) => ({ value: key, label: gameModeKeyLabel(key) }))}
+            selected={gameModeFilter}
+            onChange={(next) => updateParams({ gameMode: next, page: 1 })}
+          />
           <select value={factionFilter} onChange={(e) => updateParams({ faction: e.target.value as FactionFilter, page: 1 })}>
             <option value="all">Radiant/Dire</option>
             <option value="radiant">Radiant</option>
