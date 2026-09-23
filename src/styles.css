@@ -369,6 +369,52 @@ button {
   border-color: var(--md-primary);
 }
 
+/* Picking a hero from the dropdown adds it as a removable chip below,
+   rather than a native <select multiple> - there's no real ctrl/cmd-click
+   gesture on a phone, which is how this dashboard is mostly used. */
+.hero-multiselect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hero-multiselect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border: 1px solid var(--md-primary);
+  padding: 3px 6px 3px 3px;
+  border-radius: var(--shape-full);
+  font-weight: 600;
+  font-size: 12px;
+}
+.hero-chip-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--shape-full);
+  object-fit: cover;
+}
+.hero-chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+  transition: opacity var(--duration-short) var(--motion-standard);
+}
+.hero-chip-remove:hover {
+  opacity: 1;
+}
+
 /* ============================================================
    Tables
    ============================================================ */

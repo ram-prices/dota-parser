@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getMatch, getMatchExtrasIndex, getMatchIndexForStats, getMatches, getProfile, getWinLoss, OpenDotaError } from "../opendota";
 import type { MatchExtras, MatchSummary, PlayerProfile, WinLoss } from "../types";
+import { HeroMultiSelect } from "../components/HeroMultiSelect";
 import {
   effectiveGameModeKey,
   formatDuration,
@@ -74,6 +75,14 @@ function matchWon(m: MatchSummary): boolean {
   return isRadiant(m.player_slot) === m.radiant_win;
 }
 
+function parseHeroIds(raw: string | null): number[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((token) => Math.floor(Number(token)))
+    .filter((id) => id > 0);
+}
+
 export function Dashboard({ accountId }: { accountId: number }) {
   // Page + filters are all mirrored into the URL so that clicking into a
   // match and then hitting the browser's back button lands you back on
@@ -82,7 +91,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // state alone can't survive it, but the URL does.
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPage = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
-  const initialHero = Math.floor(Number(searchParams.get("hero"))) || 0;
+  const initialHero = parseHeroIds(searchParams.get("hero"));
   const initialResult = (searchParams.get("result") as ResultFilter) || "all";
   // null (param never set) defaults to Ranked+Unranked; "" is a deliberate
   // "cleared to none" (see updateParams below, which writes "" rather than
@@ -110,8 +119,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialFaction = (searchParams.get("faction") as FactionFilter) || "all";
   const initialParty = (searchParams.get("party") as PartyFilter) || "all";
   const initialTimeRange = (searchParams.get("time") as TimeRangeFilter) || "all";
-  const initialTeammateHero = Math.floor(Number(searchParams.get("teamHero"))) || 0;
-  const initialEnemyHero = Math.floor(Number(searchParams.get("enemyHero"))) || 0;
+  const initialTeammateHero = parseHeroIds(searchParams.get("teamHero"));
+  const initialEnemyHero = parseHeroIds(searchParams.get("enemyHero"));
   const initialPatch = Math.floor(Number(searchParams.get("patch"))) || 0;
 
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -130,15 +139,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const [extrasIndex, setExtrasIndex] = useState<MatchExtras[] | null>(null);
 
   const [page, setPage] = useState(initialPage);
-  const [heroFilter, setHeroFilter] = useState(initialHero);
+  const [heroFilter, setHeroFilter] = useState<number[]>(initialHero);
   const [resultFilter, setResultFilter] = useState<ResultFilter>(initialResult);
   const [modeFilter, setModeFilter] = useState<ModeFilterKey[]>(initialMode);
   const [gameModeFilter, setGameModeFilter] = useState<GameModeKey>(initialGameMode);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>(initialFaction);
   const [partyFilter, setPartyFilter] = useState<PartyFilter>(initialParty);
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilter>(initialTimeRange);
-  const [teammateHeroFilter, setTeammateHeroFilter] = useState(initialTeammateHero);
-  const [enemyHeroFilter, setEnemyHeroFilter] = useState(initialEnemyHero);
+  const [teammateHeroFilter, setTeammateHeroFilter] = useState<number[]>(initialTeammateHero);
+  const [enemyHeroFilter, setEnemyHeroFilter] = useState<number[]>(initialEnemyHero);
   const [patchFilter, setPatchFilter] = useState(initialPatch);
 
   // undefined = still loading, null = loaded but no rank/skill data available
@@ -148,15 +157,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
 
   function updateParams(next: {
     page?: number;
-    hero?: number;
+    hero?: number[];
     result?: ResultFilter;
     mode?: ModeFilterKey[];
     gameMode?: GameModeKey;
     faction?: FactionFilter;
     party?: PartyFilter;
     time?: TimeRangeFilter;
-    teammateHero?: number;
-    enemyHero?: number;
+    teammateHero?: number[];
+    enemyHero?: number[];
     patch?: number;
   }) {
     const merged = {
@@ -178,8 +187,8 @@ export function Dashboard({ accountId }: { accountId: number }) {
         const params = new URLSearchParams(prev);
         if (merged.page <= 1) params.delete("page");
         else params.set("page", String(merged.page));
-        if (!merged.hero) params.delete("hero");
-        else params.set("hero", String(merged.hero));
+        if (merged.hero.length === 0) params.delete("hero");
+        else params.set("hero", merged.hero.join(","));
         if (merged.result === "all") params.delete("result");
         else params.set("result", merged.result);
         // "" (not deleted) marks a deliberate clear-to-none, distinct from
@@ -195,10 +204,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("party", merged.party);
         if (merged.time === "all") params.delete("time");
         else params.set("time", merged.time);
-        if (!merged.teammateHero) params.delete("teamHero");
-        else params.set("teamHero", String(merged.teammateHero));
-        if (!merged.enemyHero) params.delete("enemyHero");
-        else params.set("enemyHero", String(merged.enemyHero));
+        if (merged.teammateHero.length === 0) params.delete("teamHero");
+        else params.set("teamHero", merged.teammateHero.join(","));
+        if (merged.enemyHero.length === 0) params.delete("enemyHero");
+        else params.set("enemyHero", merged.enemyHero.join(","));
         if (!merged.patch) params.delete("patch");
         else params.set("patch", String(merged.patch));
         return params;
@@ -319,7 +328,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
     if (!allMatches) return null;
     const cutoff = timeRangeFilter !== "all" ? Date.now() / 1000 - TIME_RANGE_DAYS[timeRangeFilter] * 86400 : null;
     return allMatches.filter((m) => {
-      if (heroFilter && m.hero_id !== heroFilter) return false;
+      if (heroFilter.length > 0 && !heroFilter.includes(m.hero_id)) return false;
       if (resultFilter !== "all") {
         if (resultFilter === "abandoned") {
           if (!isAbandoned(m.leaver_status)) return false;
@@ -347,16 +356,18 @@ export function Dashboard({ accountId }: { accountId: number }) {
         if (partyFilter === "party" && solo) return false;
       }
       if (cutoff != null && m.start_time < cutoff) return false;
-      if (teammateHeroFilter || enemyHeroFilter || patchFilter) {
+      if (teammateHeroFilter.length > 0 || enemyHeroFilter.length > 0 || patchFilter) {
         const extra = extrasByMatchId?.get(m.match_id);
         if (!extra) return false;
-        if (teammateHeroFilter) {
+        if (teammateHeroFilter.length > 0) {
           const mySide = isRadiant(m.player_slot) ? extra.radiant : extra.dire;
-          if (!mySide.includes(teammateHeroFilter) || teammateHeroFilter === m.hero_id) return false;
+          const hasAny = teammateHeroFilter.some((h) => h !== m.hero_id && mySide.includes(h));
+          if (!hasAny) return false;
         }
-        if (enemyHeroFilter) {
+        if (enemyHeroFilter.length > 0) {
           const enemySide = isRadiant(m.player_slot) ? extra.dire : extra.radiant;
-          if (!enemySide.includes(enemyHeroFilter)) return false;
+          const hasAny = enemyHeroFilter.some((h) => enemySide.includes(h));
+          if (!hasAny) return false;
         }
         if (patchFilter && extra.patch !== patchFilter) return false;
       }
@@ -431,15 +442,15 @@ export function Dashboard({ accountId }: { accountId: number }) {
   // there's no filtered set to derive it from, i.e. the live-API
   // fallback path, where filters are hidden anyway).
   const isFiltered = Boolean(
-    heroFilter ||
+    heroFilter.length > 0 ||
       resultFilter !== "all" ||
       modeFilter.length > 0 ||
       gameModeFilter ||
       factionFilter !== "all" ||
       partyFilter !== "all" ||
       timeRangeFilter !== "all" ||
-      teammateHeroFilter ||
-      enemyHeroFilter ||
+      teammateHeroFilter.length > 0 ||
+      enemyHeroFilter.length > 0 ||
       patchFilter,
   );
   const filteredWins = filtered?.filter(matchWon).length ?? 0;
@@ -481,32 +492,26 @@ export function Dashboard({ accountId }: { accountId: number }) {
 
       {allMatches && (
         <div className="toolbar match-filters">
-          <select value={heroFilter} onChange={(e) => updateParams({ hero: Number(e.target.value), page: 1 })}>
-            <option value={0}>All Heroes</option>
-            {heroOptions.map((id) => (
-              <option key={id} value={id}>
-                {heroName(id)}
-              </option>
-            ))}
-          </select>
+          <HeroMultiSelect
+            label="All Heroes"
+            options={heroOptions}
+            selected={heroFilter}
+            onChange={(next) => updateParams({ hero: next, page: 1 })}
+          />
           {extrasByMatchId && (
             <>
-              <select value={teammateHeroFilter} onChange={(e) => updateParams({ teammateHero: Number(e.target.value), page: 1 })}>
-                <option value={0}>Any Teammate Hero</option>
-                {teammateHeroOptions.map((id) => (
-                  <option key={id} value={id}>
-                    {heroName(id)}
-                  </option>
-                ))}
-              </select>
-              <select value={enemyHeroFilter} onChange={(e) => updateParams({ enemyHero: Number(e.target.value), page: 1 })}>
-                <option value={0}>Any Enemy Hero</option>
-                {enemyHeroOptions.map((id) => (
-                  <option key={id} value={id}>
-                    {heroName(id)}
-                  </option>
-                ))}
-              </select>
+              <HeroMultiSelect
+                label="Any Teammate Hero"
+                options={teammateHeroOptions}
+                selected={teammateHeroFilter}
+                onChange={(next) => updateParams({ teammateHero: next, page: 1 })}
+              />
+              <HeroMultiSelect
+                label="Any Enemy Hero"
+                options={enemyHeroOptions}
+                selected={enemyHeroFilter}
+                onChange={(next) => updateParams({ enemyHero: next, page: 1 })}
+              />
             </>
           )}
           <select value={resultFilter} onChange={(e) => updateParams({ result: e.target.value as ResultFilter, page: 1 })}>
