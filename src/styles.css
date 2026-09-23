@@ -592,6 +592,14 @@ tbody tr:last-child td {
   color: var(--dire);
   background: color-mix(in srgb, var(--dire) 16%, transparent);
 }
+/* Abandoned overrides win/loss's color regardless of which one also
+   applies (the match still resolved to a win or loss underneath - this
+   just replaces how it's shown) - kept after those rules so it wins on
+   equal specificity. */
+.match-row.row-abandoned .result-badge {
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--text-dim) 16%, transparent);
+}
 .lane-pill {
   display: inline-flex;
   align-items: center;

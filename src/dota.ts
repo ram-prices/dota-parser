@@ -426,6 +426,15 @@ const SKILL_LABELS: Record<number, string> = {
   3: "Very High Skill",
 };
 
+// leaver_status: 0 none, 1 disconnected (a brief drop that reconnects -
+// still a normal completed match, not treated as an abandon), 2
+// disconnected too long, 3 abandoned, 4 AFK, 5/6 never connected (in
+// time). 2 and up mean this account genuinely left/never played the
+// match, as opposed to it finishing out normally.
+export function isAbandoned(leaverStatus: number | undefined | null): boolean {
+  return (leaverStatus ?? 0) >= 2;
+}
+
 // OpenDota's `skill` match field - Valve's own lobby skill bracket for
 // (mostly unranked) matchmaking, assigned at match time. Unlike rank_tier
 // (which reflects each player's rank as of whenever OpenDota last synced

@@ -9,6 +9,7 @@ import {
   gameModeKeyLabel,
   heroIcon,
   heroName,
+  isAbandoned,
   isEventGameModeKey,
   isRadiant,
   laneOutcome,
@@ -34,7 +35,7 @@ const PAGE_SIZE = 30;
 // was available for that match.
 type RankBadge = { label: string; color: string | null } | null;
 
-type ResultFilter = "all" | "win" | "loss";
+type ResultFilter = "all" | "win" | "loss" | "abandoned";
 type FactionFilter = "all" | "radiant" | "dire";
 type PartyFilter = "all" | "solo" | "party";
 type TimeRangeFilter = "all" | "7d" | "30d" | "90d" | "180d" | "365d";
@@ -52,6 +53,7 @@ const MODE_OPTIONS: { value: ModeFilterKey; label: string }[] = [
   { value: 4, label: "Bot Match" },
   { value: "event", label: "Event" },
 ];
+const DEFAULT_MODE: ModeFilterKey[] = [7, 0];
 
 const TIME_RANGE_LABELS: Record<Exclude<TimeRangeFilter, "all">, string> = {
   "7d": "Last 7 Days",
@@ -82,13 +84,20 @@ export function Dashboard({ accountId }: { accountId: number }) {
   const initialPage = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
   const initialHero = Math.floor(Number(searchParams.get("hero"))) || 0;
   const initialResult = (searchParams.get("result") as ResultFilter) || "all";
+  // null (param never set) defaults to Ranked+Unranked; "" is a deliberate
+  // "cleared to none" (see updateParams below, which writes "" rather than
+  // deleting the param so a deliberate clear doesn't spring back to the
+  // default on the next load).
   const rawModeParam = searchParams.get("mode");
-  const initialMode: ModeFilterKey[] = rawModeParam
-    ? rawModeParam
-        .split(",")
-        .map((token): ModeFilterKey => (token === "event" ? "event" : Number(token)))
-        .filter((v) => MODE_OPTIONS.some((o) => o.value === v))
-    : [];
+  const initialMode: ModeFilterKey[] =
+    rawModeParam === null
+      ? DEFAULT_MODE
+      : rawModeParam
+        ? rawModeParam
+            .split(",")
+            .map((token): ModeFilterKey => (token === "event" ? "event" : Number(token)))
+            .filter((v) => MODE_OPTIONS.some((o) => o.value === v))
+        : [];
   // Game Mode values are usually numeric (a raw game_mode), but a dated
   // seasonal Custom Game match (Frostivus, New Bloom, ...) uses a
   // synthetic string key instead - see effectiveGameModeKey() in dota.ts.
@@ -173,7 +182,10 @@ export function Dashboard({ accountId }: { accountId: number }) {
         else params.set("hero", String(merged.hero));
         if (merged.result === "all") params.delete("result");
         else params.set("result", merged.result);
-        if (merged.mode.length === 0) params.delete("mode");
+        // "" (not deleted) marks a deliberate clear-to-none, distinct from
+        // the param being absent (which defaults to Ranked+Unranked - see
+        // initialMode above).
+        if (merged.mode.length === 0) params.set("mode", "");
         else params.set("mode", merged.mode.join(","));
         if (!merged.gameMode) params.delete("gm");
         else params.set("gm", String(merged.gameMode));
@@ -309,9 +321,13 @@ export function Dashboard({ accountId }: { accountId: number }) {
     return allMatches.filter((m) => {
       if (heroFilter && m.hero_id !== heroFilter) return false;
       if (resultFilter !== "all") {
-        const won = matchWon(m);
-        if (resultFilter === "win" && !won) return false;
-        if (resultFilter === "loss" && won) return false;
+        if (resultFilter === "abandoned") {
+          if (!isAbandoned(m.leaver_status)) return false;
+        } else {
+          const won = matchWon(m);
+          if (resultFilter === "win" && !won) return false;
+          if (resultFilter === "loss" && won) return false;
+        }
       }
       if (modeFilter.length > 0) {
         const matchesMode = modeFilter.some((key) =>
@@ -497,6 +513,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
             <option value="all">All Results</option>
             <option value="win">Wins</option>
             <option value="loss">Losses</option>
+            <option value="abandoned">Abandoned</option>
           </select>
           <div className="filter-chip-group">
             {MODE_OPTIONS.map((opt) => (
@@ -576,10 +593,11 @@ export function Dashboard({ accountId }: { accountId: number }) {
           <tbody>
             {pageMatches.map((m, i) => {
               const won = matchWon(m);
+              const abandoned = isAbandoned(m.leaver_status);
               return (
                 <tr
                   key={m.match_id}
-                  className={`match-row ${won ? "row-win" : "row-loss"}`}
+                  className={`match-row ${won ? "row-win" : "row-loss"} ${abandoned ? "row-abandoned" : ""}`}
                   style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
                 >
                   <td className="match-row-hero-cell">
@@ -590,7 +608,7 @@ export function Dashboard({ accountId }: { accountId: number }) {
                     <Link
                       to={`/matches/${m.match_id}`}
                       className="match-row-link"
-                      aria-label={`${heroName(m.hero_id)} - ${won ? "Win" : "Loss"} - ${formatRelativeTime(m.start_time)}`}
+                      aria-label={`${heroName(m.hero_id)} - ${abandoned ? "Abandoned" : won ? "Win" : "Loss"} - ${formatRelativeTime(m.start_time)}`}
                     />
                     <span className="match-row-hero">
                       {heroIcon(m.hero_id) && (
@@ -606,7 +624,9 @@ export function Dashboard({ accountId }: { accountId: number }) {
                   </td>
                   <td className="match-row-result-cell">
                     <span className="match-row-result">
-                      <span className="result-badge">{won ? "W" : "L"}</span>
+                      <span className="result-badge" title={abandoned ? "Abandoned" : undefined}>
+                        {abandoned ? "✕" : won ? "W" : "L"}
+                      </span>
                       {lanes[m.match_id] && (
                         <span
                           className={`lane-pill lane-${lanes[m.match_id]}`}

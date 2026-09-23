@@ -35,6 +35,7 @@ export interface MatchSummary {
   last_hits?: number;
   lane_role?: number;
   party_size?: number | null;
+  leaver_status?: number | null;
 }
 
 // A few fields that only exist on a match's full detail, not the
